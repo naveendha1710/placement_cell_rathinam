@@ -28,8 +28,8 @@ export const UserManagement: React.FC = () => {
     loadProfiles();
   }, []);
 
-  const handleSaveUser = async (profileData: Partial<Profile> & { name: string; email: string; role: UserRole }) => {
-    await DataStore.saveProfile(profileData as Profile);
+  const handleSaveUser = async (profileData: Partial<Profile> & { name: string; email: string; role: UserRole; password?: string }) => {
+    await DataStore.saveProfile(profileData as Profile & { password?: string });
     setIsFormOpen(false);
     await loadProfiles();
   };

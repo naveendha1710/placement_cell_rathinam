@@ -8,7 +8,7 @@ import { X } from 'lucide-react';
 
 interface UserInlineFormProps {
   onClose: () => void;
-  onSave: (user: Partial<Profile> & { name: string; email: string; role: UserRole }) => Promise<void>;
+  onSave: (user: Partial<Profile> & { name: string; email: string; role: UserRole; password?: string }) => Promise<void>;
   userProfile?: Profile | null;
 }
 
@@ -38,6 +38,7 @@ export const UserInlineForm: React.FC<UserInlineFormProps> = ({
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     role: 'dept_coordinator' as UserRole,
     department_scope: '',
     status: 'active' as 'active' | 'disabled',
@@ -50,6 +51,7 @@ export const UserInlineForm: React.FC<UserInlineFormProps> = ({
       setFormData({
         name: userProfile.name || '',
         email: userProfile.email || '',
+        password: '',
         role: userProfile.role || 'dept_coordinator',
         department_scope: userProfile.department_scope || '',
         status: userProfile.status || 'active',
@@ -65,6 +67,7 @@ export const UserInlineForm: React.FC<UserInlineFormProps> = ({
         id: userProfile?.id,
         name: formData.name.trim(),
         email: formData.email.trim(),
+        password: formData.password || undefined,
         role: formData.role,
         department_scope: formData.role === 'dept_coordinator' ? formData.department_scope : undefined,
         status: formData.status,
@@ -82,7 +85,7 @@ export const UserInlineForm: React.FC<UserInlineFormProps> = ({
           <h3 className="text-base font-bold text-zinc-900">
             {userProfile ? 'Edit Staff Credentials (Inline Form)' : 'Add New Staff User (Inline Form)'}
           </h3>
-          <p className="text-xs text-zinc-500">Configure role permissions and department access boundaries</p>
+          <p className="text-xs text-zinc-500">Configure role permissions, credentials, and department access boundaries</p>
         </div>
         <button onClick={onClose} className="p-1 rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">
           <X className="h-5 w-5" />
@@ -107,6 +110,18 @@ export const UserInlineForm: React.FC<UserInlineFormProps> = ({
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             required
           />
+
+          {!userProfile && (
+            <Input
+              label="Account Password *"
+              type="password"
+              placeholder="Set account password (min 6 characters)"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
+              minLength={6}
+            />
+          )}
 
           <Select
             label="System Role *"

@@ -19,7 +19,22 @@ interface AuthContextType {
   canManageUsers: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const defaultAuthContext: AuthContextType = {
+  user: null,
+  role: 'super_admin',
+  departmentScope: null,
+  loading: false,
+  login: async () => false,
+  logout: () => {},
+  switchRole: () => {},
+  canCreateEdit: true,
+  canDelete: true,
+  canApprove: true,
+  canUpdateApplicationStatus: true,
+  canManageUsers: true,
+};
+
+const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<Profile | null>(null);
@@ -105,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Permission flags based on spec
   const canCreateEdit = role === 'super_admin' || role === 'placement_coordinator' || role === 'dept_coordinator' || role === 'data_entry';
   const canDelete = role === 'super_admin' || role === 'placement_coordinator' || role === 'dept_coordinator';
-  const canApprove = role === 'super_admin' || role === 'placement_coordinator';
+  const canApprove = role === 'super_admin';
   const canUpdateApplicationStatus = role === 'super_admin' || role === 'placement_coordinator' || role === 'dept_coordinator';
   const canManageUsers = role === 'super_admin';
 
@@ -131,8 +146,5 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return context || defaultAuthContext;
 };

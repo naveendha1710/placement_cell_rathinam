@@ -54,19 +54,53 @@ export const DataStore = {
     return getStored<Profile[]>(STORAGE_KEYS.PROFILES, INITIAL_PROFILES);
   },
 
-  async saveProfile(profile: Omit<Profile, 'created_at'> & { created_at?: string }): Promise<Profile> {
+  async saveProfile(profile: Omit<Profile, 'created_at'> & { created_at?: string; password?: string }): Promise<Profile> {
+    const profileId = profile.id && profile.id.length > 10 ? profile.id : crypto.randomUUID();
     const newProfile: Profile = {
       ...profile,
+      id: profileId,
       created_at: profile.created_at || new Date().toISOString(),
     };
 
     if (!isMockMode) {
-      const { data, error } = await supabase.from('profiles').upsert(newProfile).select().single();
-      if (!error && data) return data as Profile;
+      try {
+        // Check if profile with email already exists in Supabase to reuse ID
+        const { data: existingProf } = await supabase.from('profiles').select('id').eq('email', newProfile.email).maybeSingle();
+        if (existingProf?.id) {
+          newProfile.id = existingProf.id;
+        }
+
+        const profilePayload: any = { ...newProfile };
+        if (profile.password) {
+          profilePayload.password_hash = profile.password;
+        }
+        delete profilePayload.password;
+
+        const { data, error } = await supabase.from('profiles').upsert(profilePayload).select().single();
+        if (error) {
+          console.error('Error upserting profile in Supabase:', error);
+        } else if (data) {
+          delete (data as any).password;
+          delete (data as any).password_hash;
+          const profiles = getStored<Profile[]>(STORAGE_KEYS.PROFILES, INITIAL_PROFILES);
+          const existingIndex = profiles.findIndex(p => p.id === data.id || p.email === data.email);
+          if (existingIndex >= 0) {
+            profiles[existingIndex] = data as Profile;
+          } else {
+            profiles.push(data as Profile);
+          }
+          setStored(STORAGE_KEYS.PROFILES, profiles);
+          return data as Profile;
+        }
+      } catch (err) {
+        console.error('Supabase profile save exception:', err);
+      }
     }
 
+    delete (newProfile as any).password;
+    delete (newProfile as any).password_hash;
     const profiles = getStored<Profile[]>(STORAGE_KEYS.PROFILES, INITIAL_PROFILES);
-    const existingIndex = profiles.findIndex(p => p.id === newProfile.id);
+    const existingIndex = profiles.findIndex(p => p.id === newProfile.id || p.email === newProfile.email);
     if (existingIndex >= 0) {
       profiles[existingIndex] = newProfile;
     } else {

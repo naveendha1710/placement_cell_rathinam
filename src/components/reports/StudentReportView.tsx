@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Student, DriveApplication, Company, Offer, PlacementStatus, ResidencyType } from '../../types/database';
+import { Student, DriveApplication, Company, Offer, PlacementStatus } from '../../types/database';
 import { DataStore } from '../../lib/store';
 import { useAuth } from '../../context/AuthContext';
 import { Card } from '../ui/Card';
@@ -51,6 +51,8 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
   const [selectedDept, setSelectedDept] = useState<string>(defaultDept);
   const [selectedStatus, setSelectedStatus] = useState<string>('All Statuses');
   const [selectedResidency, setSelectedResidency] = useState<string>('All Residencies');
+  const [selectedCompany, setSelectedCompany] = useState<string>('All Companies');
+  const [selectedDriveStage, setSelectedDriveStage] = useState<string>('All Stages');
 
   useEffect(() => {
     async function loadData() {
@@ -80,7 +82,7 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
     loadData();
   }, []);
 
-  // Filter students based on selection
+  // Filter students based on academic & profile selection
   const filteredStudents = useMemo(() => {
     return students.filter(s => {
       // Dept Coordinator Scope Guard
@@ -102,16 +104,13 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
     });
   }, [students, selectedDept, selectedStatus, selectedResidency, role, departmentScope]);
 
-  // Compute top KPI cards dynamically from filtered students
-  const kpis = useMemo(() => {
-    const total = filteredStudents.length;
-    const placed = filteredStudents.filter(s => s.placement_status === 'placed').length;
-    const unplaced = filteredStudents.filter(s => s.placement_status === 'unplaced').length;
-    const optedOut = filteredStudents.filter(s => s.placement_status === 'opted_out').length;
-    return { total, placed, unplaced, optedOut };
-  }, [filteredStudents]);
+  // Unique Company Names list for filter dropdown
+  const companyOptions = useMemo(() => {
+    const names = Array.from(new Set(Object.values(companiesMap).map(c => c.name))).sort();
+    return ['All Companies', ...names];
+  }, [companiesMap]);
 
-  // Generate Report Rows (One row per student application, or single row if no applications)
+  // Generate Report Rows based on student, company, and drive stage filters
   const reportRows = useMemo(() => {
     const rows: StudentReportRow[] = [];
 
@@ -119,25 +118,43 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
       const stApps = applications.filter(a => a.student_id === st.student_id);
 
       if (stApps.length === 0) {
-        rows.push({
-          student_id: st.student_id,
-          roll_number: st.roll_number,
-          name: st.name,
-          department: st.department,
-          email: st.email,
-          placement_status: st.placement_status,
-          residency: st.residency || 'day_scholar',
-          ug_cgpa: st.ug_cgpa ?? null,
-          backlogs_count: st.backlogs_count || 0,
-          company_name: '-',
-          ctc_lpa: null,
-          final_status: '-',
-          offer_accepted: '-',
-        });
+        if (selectedCompany === 'All Companies' && selectedDriveStage === 'All Stages') {
+          rows.push({
+            student_id: st.student_id,
+            roll_number: st.roll_number,
+            name: st.name,
+            department: st.department,
+            email: st.email,
+            placement_status: st.placement_status,
+            residency: st.residency || 'day_scholar',
+            ug_cgpa: st.ug_cgpa ?? null,
+            backlogs_count: st.backlogs_count || 0,
+            company_name: '-',
+            ctc_lpa: null,
+            final_status: '-',
+            offer_accepted: '-',
+          });
+        }
       } else {
         stApps.forEach(app => {
           const offer = offersMap[app.offer_id];
           const company = offer ? companiesMap[offer.company_id] : null;
+          const compName = company?.name || 'Company Offer';
+          const finalStatusLower = (app.final_status || '').toLowerCase();
+
+          // Company Filter
+          if (selectedCompany !== 'All Companies' && compName !== selectedCompany) {
+            return;
+          }
+
+          // Drive Stage / Stage Filter
+          if (selectedDriveStage !== 'All Stages') {
+            if (selectedDriveStage === 'selected' && finalStatusLower !== 'selected') return;
+            if (selectedDriveStage === 'shortlisted' && finalStatusLower !== 'shortlisted') return;
+            if (selectedDriveStage === 'interviewed' && finalStatusLower !== 'interviewed') return;
+            if (selectedDriveStage === 'applied' && finalStatusLower !== 'applied') return;
+            if (selectedDriveStage === 'rejected' && finalStatusLower !== 'rejected') return;
+          }
 
           rows.push({
             student_id: st.student_id,
@@ -149,7 +166,7 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
             residency: st.residency || 'day_scholar',
             ug_cgpa: st.ug_cgpa ?? null,
             backlogs_count: st.backlogs_count || 0,
-            company_name: company?.name || 'Company Offer',
+            company_name: compName,
             ctc_lpa: offer?.ctc_lpa ?? null,
             final_status: app.final_status.toUpperCase(),
             offer_accepted: app.final_status === 'selected' ? (app.offer_accepted ? 'Yes' : 'Pending') : '-',
@@ -159,7 +176,22 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
     });
 
     return rows;
-  }, [filteredStudents, applications, offersMap, companiesMap]);
+  }, [filteredStudents, applications, offersMap, companiesMap, selectedCompany, selectedDriveStage]);
+
+  // Compute top KPI cards dynamically from active report rows & filtered students
+  const kpis = useMemo(() => {
+    const total = filteredStudents.length;
+    const placed = filteredStudents.filter(s => s.placement_status === 'placed').length;
+    const unplaced = filteredStudents.filter(s => s.placement_status === 'unplaced').length;
+    const optedOut = filteredStudents.filter(s => s.placement_status === 'opted_out').length;
+    return { total, placed, unplaced, optedOut };
+  }, [filteredStudents]);
+
+  // Distinct student count in current table view
+  const distinctCandidateCount = useMemo(() => {
+    const set = new Set(reportRows.map(r => r.student_id));
+    return set.size;
+  }, [reportRows]);
 
   // Pass rows to parent for Excel export
   useEffect(() => {
@@ -218,9 +250,9 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
       <Card className="p-4 bg-white border-zinc-200">
         <div className="flex items-center gap-2 mb-3">
           <Filter className="h-4 w-4 text-zinc-500" />
-          <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">Report Filters</h4>
+          <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">Student & Drive Filters</h4>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <Select
             label="Department"
             value={selectedDept}
@@ -240,6 +272,25 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
             ]}
           />
           <Select
+            label="Applied Company"
+            value={selectedCompany}
+            onChange={(e) => setSelectedCompany(e.target.value)}
+            options={companyOptions.map(c => ({ label: c, value: c }))}
+          />
+          <Select
+            label="Drive Application Stage"
+            value={selectedDriveStage}
+            onChange={(e) => setSelectedDriveStage(e.target.value)}
+            options={[
+              { label: 'All Stages', value: 'All Stages' },
+              { label: 'Selected / Placed', value: 'selected' },
+              { label: 'Shortlisted', value: 'shortlisted' },
+              { label: 'Interviewed', value: 'interviewed' },
+              { label: 'Applied', value: 'applied' },
+              { label: 'Rejected', value: 'rejected' },
+            ]}
+          />
+          <Select
             label="Residency Type"
             value={selectedResidency}
             onChange={(e) => setSelectedResidency(e.target.value)}
@@ -256,8 +307,8 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
       <Card className="p-4 bg-white border-zinc-200 space-y-3">
         <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
           <div>
-            <h3 className="text-base font-bold text-zinc-900">Student-wise Placement Report</h3>
-            <p className="text-xs text-zinc-500">Comprehensive student academic scorecard & drive participation matrix</p>
+            <h3 className="text-base font-bold text-zinc-900">Student-wise Placement & Drive Matrix</h3>
+            <p className="text-xs text-zinc-500">Student academic details, applied companies, drive stages, and company offer acceptances</p>
           </div>
         </div>
 
@@ -275,10 +326,10 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
                   <th className="py-3 px-4">Department</th>
                   <th className="py-3 px-4">CGPA / Backlogs</th>
                   <th className="py-3 px-4">Placement Status</th>
-                  <th className="py-3 px-4">Company Name</th>
+                  <th className="py-3 px-4">Applied Company</th>
                   <th className="py-3 px-4">CTC (LPA)</th>
-                  <th className="py-3 px-4">Final Drive Status</th>
-                  <th className="py-3 px-4">Offer Accepted</th>
+                  <th className="py-3 px-4">Drive Stage</th>
+                  <th className="py-3 px-4">Placed / Offer Accepted</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 bg-white">
@@ -303,12 +354,20 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
                         {row.placement_status.toUpperCase()}
                       </Badge>
                     </td>
-                    <td className="py-3 px-4 font-semibold text-zinc-900">{row.company_name}</td>
-                    <td className="py-3 px-4 font-semibold text-emerald-700">
+                    <td className="py-3 px-4 font-bold text-zinc-900">{row.company_name}</td>
+                    <td className="py-3 px-4 font-bold text-emerald-700">
                       {row.ctc_lpa ? `₹${row.ctc_lpa.toFixed(2)} LPA` : '-'}
                     </td>
-                    <td className="py-3 px-4 font-medium text-zinc-800">{row.final_status}</td>
-                    <td className="py-3 px-4 font-bold text-zinc-900">{row.offer_accepted}</td>
+                    <td className="py-3 px-4 font-semibold text-purple-700">{row.final_status}</td>
+                    <td className="py-3 px-4 font-bold text-zinc-900">
+                      {row.offer_accepted === 'Yes' ? (
+                        <span className="text-emerald-700 font-bold">Placed ✓ (Accepted)</span>
+                      ) : row.final_status === 'SELECTED' ? (
+                        <span className="text-amber-700 font-bold">Selected (Pending)</span>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -318,9 +377,9 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
 
         {/* Footnote */}
         <div className="pt-2 border-t border-zinc-100 text-[11px] text-zinc-500 font-medium flex items-center justify-between">
-          <span>* Footnote: Students with multiple drive registrations appear once per application row.</span>
+          <span>* Footnote: Multiple drive registrations for a student render one row per application.</span>
           <span className="font-semibold text-zinc-800">
-            Total Application Rows: {reportRows.length} | Distinct Candidates: {filteredStudents.length}
+            Filtered Application Rows: {reportRows.length} | Distinct Candidates: {distinctCandidateCount}
           </span>
         </div>
       </Card>
