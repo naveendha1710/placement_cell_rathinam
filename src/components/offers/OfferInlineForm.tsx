@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Offer, Company, DriveMode, OfferDriveStatus } from '../../types/database';
+import { Offer, Company, DriveMode, OfferDriveStatus, OfferStatus } from '../../types/database';
 import { DataStore } from '../../lib/store';
 import { extractTextFromDocumentFile } from '../../utils/documentExtractor';
 import { Card } from '../ui/Card';
@@ -45,6 +45,7 @@ export const OfferInlineForm: React.FC<OfferInlineFormProps> = ({
     drive_date: '',
     drive_mode: 'on_campus' as DriveMode,
     status: 'scheduled' as OfferDriveStatus,
+    offer_status: 'cold' as OfferStatus,
     eligible_departments: ['Computer Science', 'Information Technology'],
     min_cgpa: '6.0',
     max_backlogs: '1',
@@ -84,6 +85,7 @@ export const OfferInlineForm: React.FC<OfferInlineFormProps> = ({
         drive_date: offer.drive_date || '',
         drive_mode: offer.drive_mode || 'on_campus',
         status: offer.status || 'scheduled',
+        offer_status: (offer.offer_status || 'cold') as OfferStatus,
         eligible_departments: offer.eligible_departments || ['Computer Science'],
         min_cgpa: offer.eligibility_criteria?.min_cgpa?.toString() || '6.0',
         max_backlogs: offer.eligibility_criteria?.max_backlogs?.toString() || '1',
@@ -156,6 +158,7 @@ export const OfferInlineForm: React.FC<OfferInlineFormProps> = ({
         drive_date: formData.drive_date || null,
         drive_mode: formData.drive_mode,
         status: formData.status,
+        offer_status: formData.offer_status,
         approval_status: offer?.approval_status || 'approved',
         approved_by: offer?.approved_by || null,
         approved_at: offer?.approved_at || null,
@@ -273,6 +276,18 @@ export const OfferInlineForm: React.FC<OfferInlineFormProps> = ({
               { label: 'Ongoing', value: 'ongoing' },
               { label: 'Completed', value: 'completed' },
               { label: 'Cancelled', value: 'cancelled' },
+            ]}
+          />
+
+          <Select
+            label="Offer Lifecycle Pipeline Stage"
+            value={formData.offer_status}
+            onChange={(e) => setFormData({ ...formData, offer_status: e.target.value as OfferStatus })}
+            options={[
+              { label: 'Cold (Initial Discussion / Lead)', value: 'cold' },
+              { label: 'Warm (Active Discussion / Scheduling)', value: 'warm' },
+              { label: 'Hot (Confirmed Drive Date)', value: 'hot' },
+              { label: 'Drive Completed (Select Placed Candidates)', value: 'drive_completed' },
             ]}
           />
         </div>

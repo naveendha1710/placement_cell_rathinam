@@ -162,186 +162,188 @@ export const Students: React.FC = () => {
       </div>
 
       {/* Inline Form Container */}
-      {isFormOpen && (
+      {isFormOpen ? (
         <StudentInlineForm
           student={selectedStudent}
           onSave={handleSaveStudent}
           onClose={() => setIsFormOpen(false)}
         />
+      ) : (
+        <>
+          {/* Filter Bar */}
+          <Card className="p-4 bg-white border-zinc-200 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div className="relative md:col-span-2 lg:col-span-1">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Search by roll, name, email..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+
+              {!departmentScope && (
+                <Select
+                  value={deptFilter}
+                  onChange={(e) => setDeptFilter(e.target.value)}
+                  options={[
+                    { label: 'All Departments', value: 'all' },
+                    { label: 'Computer Science', value: 'Computer Science' },
+                    { label: 'Information Technology', value: 'Information Technology' },
+                    { label: 'Electronics & Communication', value: 'Electronics & Communication' },
+                    { label: 'Mechanical Engineering', value: 'Mechanical Engineering' },
+                    { label: 'Civil Engineering', value: 'Civil Engineering' },
+                    { label: 'Artificial Intelligence & Data Science', value: 'Artificial Intelligence & Data Science' },
+                    { label: 'Master of Computer Applications', value: 'Master of Computer Applications' },
+                  ]}
+                />
+              )}
+
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                options={[
+                  { label: 'All Placement Statuses', value: 'all' },
+                  { label: 'Unplaced Only', value: 'unplaced' },
+                  { label: 'Placed Only', value: 'placed' },
+                  { label: 'Opted Out', value: 'opted_out' },
+                ]}
+              />
+
+              <Select
+                value={residencyFilter}
+                onChange={(e) => setResidencyFilter(e.target.value)}
+                options={[
+                  { label: 'All Residencies', value: 'all' },
+                  { label: 'Day Scholar', value: 'day_scholar' },
+                  { label: 'Hosteller', value: 'hosteller' },
+                ]}
+              />
+
+              <Select
+                value={cgpaFilter}
+                onChange={(e) => setCgpaFilter(e.target.value)}
+                options={[
+                  { label: 'All CGPA Scores', value: 'all' },
+                  { label: 'CGPA >= 8.5 (High Performers)', value: '8.5' },
+                  { label: 'CGPA >= 7.5 (First Class)', value: '7.5' },
+                  { label: 'CGPA >= 6.5', value: '6.5' },
+                  { label: 'CGPA >= 6.0', value: '6.0' },
+                ]}
+              />
+            </div>
+          </Card>
+
+          {/* Data Table */}
+          <Card className="overflow-hidden border-zinc-200">
+            {loading ? (
+              <div className="p-8 text-center text-xs text-zinc-500">Loading students...</div>
+            ) : filteredStudents.length === 0 ? (
+              <div className="p-8 text-center text-xs text-zinc-500">
+                No student records found matching the criteria.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-zinc-700">
+                  <thead className="bg-zinc-100 border-b border-zinc-200 uppercase text-[11px] font-semibold text-zinc-600 tracking-wider">
+                    <tr>
+                      <th className="py-3 px-4">Roll Number</th>
+                      <th className="py-3 px-4">Student Name</th>
+                      <th className="py-3 px-4">Department</th>
+                      <th className="py-3 px-4">CGPA</th>
+                      <th className="py-3 px-4">Backlogs</th>
+                      <th className="py-3 px-4">Placement Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 bg-white">
+                    {paginatedStudents.map((st) => (
+                      <tr key={st.student_id} className="hover:bg-zinc-50 transition-colors">
+                        <td className="py-3 px-4">
+                          <button
+                            onClick={() => navigate(`/students/${st.student_id}`)}
+                            className="font-mono font-bold text-zinc-900 hover:underline text-left"
+                          >
+                            {st.roll_number}
+                          </button>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div>
+                            <button
+                              onClick={() => navigate(`/students/${st.student_id}`)}
+                              className="font-semibold text-zinc-900 hover:underline text-left"
+                            >
+                              {st.name}
+                            </button>
+                            <p className="text-[11px] text-zinc-500">{st.email}</p>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 font-medium text-zinc-800">{st.department}</td>
+                        <td className="py-3 px-4 font-semibold text-zinc-900">
+                          {st.ug_cgpa ? st.ug_cgpa.toFixed(2) : 'N/A'}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={st.backlogs_count > 0 ? 'text-rose-600 font-bold' : 'text-zinc-500'}>
+                            {st.backlogs_count}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge variant={st.placement_status as any}>
+                            {st.placement_status.toUpperCase()}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => navigate(`/students/${st.student_id}`)}
+                              className="p-1 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
+                              title="View 70/30 Student Profile & Attended Drives"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            {canCreateEdit && (
+                              <button
+                                onClick={() => {
+                                  setSelectedStudent(st);
+                                  setIsFormOpen(true);
+                                }}
+                                className="p-1 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
+                                title="Edit Profile"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDeleteStudent(st.student_id)}
+                                className="p-1 rounded hover:bg-rose-50 text-rose-600 hover:text-rose-700"
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredStudents.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+            />
+          </Card>
+        </>
       )}
-
-      {/* Filter Bar */}
-      <Card className="p-4 bg-white border-zinc-200 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <div className="relative md:col-span-2 lg:col-span-1">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Search by roll, name, email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
-            />
-          </div>
-
-          {!departmentScope && (
-            <Select
-              value={deptFilter}
-              onChange={(e) => setDeptFilter(e.target.value)}
-              options={[
-                { label: 'All Departments', value: 'all' },
-                { label: 'Computer Science', value: 'Computer Science' },
-                { label: 'Information Technology', value: 'Information Technology' },
-                { label: 'Electronics & Communication', value: 'Electronics & Communication' },
-                { label: 'Mechanical Engineering', value: 'Mechanical Engineering' },
-                { label: 'Civil Engineering', value: 'Civil Engineering' },
-                { label: 'Artificial Intelligence & Data Science', value: 'Artificial Intelligence & Data Science' },
-                { label: 'Master of Computer Applications', value: 'Master of Computer Applications' },
-              ]}
-            />
-          )}
-
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            options={[
-              { label: 'All Placement Statuses', value: 'all' },
-              { label: 'Unplaced Only', value: 'unplaced' },
-              { label: 'Placed Only', value: 'placed' },
-              { label: 'Opted Out', value: 'opted_out' },
-            ]}
-          />
-
-          <Select
-            value={residencyFilter}
-            onChange={(e) => setResidencyFilter(e.target.value)}
-            options={[
-              { label: 'All Residencies', value: 'all' },
-              { label: 'Day Scholar', value: 'day_scholar' },
-              { label: 'Hosteller', value: 'hosteller' },
-            ]}
-          />
-
-          <Select
-            value={cgpaFilter}
-            onChange={(e) => setCgpaFilter(e.target.value)}
-            options={[
-              { label: 'All CGPA Scores', value: 'all' },
-              { label: 'CGPA >= 8.5 (High Performers)', value: '8.5' },
-              { label: 'CGPA >= 7.5 (First Class)', value: '7.5' },
-              { label: 'CGPA >= 6.5', value: '6.5' },
-              { label: 'CGPA >= 6.0', value: '6.0' },
-            ]}
-          />
-        </div>
-      </Card>
-
-      {/* Data Table */}
-      <Card className="overflow-hidden border-zinc-200">
-        {loading ? (
-          <div className="p-8 text-center text-xs text-zinc-500">Loading students...</div>
-        ) : filteredStudents.length === 0 ? (
-          <div className="p-8 text-center text-xs text-zinc-500">
-            No student records found matching the criteria.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-zinc-700">
-              <thead className="bg-zinc-100 border-b border-zinc-200 uppercase text-[11px] font-semibold text-zinc-600 tracking-wider">
-                <tr>
-                  <th className="py-3 px-4">Roll Number</th>
-                  <th className="py-3 px-4">Student Name</th>
-                  <th className="py-3 px-4">Department</th>
-                  <th className="py-3 px-4">CGPA</th>
-                  <th className="py-3 px-4">Backlogs</th>
-                  <th className="py-3 px-4">Placement Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 bg-white">
-                {paginatedStudents.map((st) => (
-                  <tr key={st.student_id} className="hover:bg-zinc-50 transition-colors">
-                    <td className="py-3 px-4">
-                      <button
-                        onClick={() => navigate(`/students/${st.student_id}`)}
-                        className="font-mono font-bold text-zinc-900 hover:underline text-left"
-                      >
-                        {st.roll_number}
-                      </button>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div>
-                        <button
-                          onClick={() => navigate(`/students/${st.student_id}`)}
-                          className="font-semibold text-zinc-900 hover:underline text-left"
-                        >
-                          {st.name}
-                        </button>
-                        <p className="text-[11px] text-zinc-500">{st.email}</p>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 font-medium text-zinc-800">{st.department}</td>
-                    <td className="py-3 px-4 font-semibold text-zinc-900">
-                      {st.ug_cgpa ? st.ug_cgpa.toFixed(2) : 'N/A'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={st.backlogs_count > 0 ? 'text-rose-600 font-bold' : 'text-zinc-500'}>
-                        {st.backlogs_count}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge variant={st.placement_status as any}>
-                        {st.placement_status.toUpperCase()}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => navigate(`/students/${st.student_id}`)}
-                          className="p-1 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
-                          title="View 70/30 Student Profile & Attended Drives"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        {canCreateEdit && (
-                          <button
-                            onClick={() => {
-                              setSelectedStudent(st);
-                              setIsFormOpen(true);
-                            }}
-                            className="p-1 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
-                            title="Edit Profile"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button
-                            onClick={() => handleDeleteStudent(st.student_id)}
-                            className="p-1 rounded hover:bg-rose-50 text-rose-600 hover:text-rose-700"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={filteredStudents.length}
-          pageSize={pageSize}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={setPageSize}
-        />
-      </Card>
     </div>
   );
 };

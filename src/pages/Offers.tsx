@@ -181,190 +181,211 @@ export const Offers: React.FC = () => {
       </div>
 
       {/* Inline Form Container */}
-      {isFormOpen && (
+      {isFormOpen ? (
         <OfferInlineForm
           offer={selectedOffer}
           onSave={handleSaveOffer}
           onClose={() => setIsFormOpen(false)}
         />
-      )}
+      ) : (
+        <>
+          {/* Filters */}
+          <Card className="p-4 bg-white border-zinc-200">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Search by company or location..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
 
-      {/* Filters */}
-      <Card className="p-4 bg-white border-zinc-200">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Search by company or location..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              <Select
+                value={approvalFilter}
+                onChange={(e) => setApprovalFilter(e.target.value)}
+                options={[
+                  { label: 'All Approval Statuses', value: 'all' },
+                  { label: 'Approved Offers', value: 'approved' },
+                  { label: 'Pending Approval', value: 'pending_approval' },
+                  { label: 'Draft Mode', value: 'draft' },
+                  { label: 'Rejected', value: 'rejected' },
+                ]}
+              />
+
+              <Select
+                value={modeFilter}
+                onChange={(e) => setModeFilter(e.target.value)}
+                options={[
+                  { label: 'All Drive Modes', value: 'all' },
+                  { label: 'On Campus', value: 'on_campus' },
+                  { label: 'Off Campus', value: 'off_campus' },
+                  { label: 'Virtual Drive', value: 'virtual' },
+                  { label: 'Pool Drive', value: 'pool_drive' },
+                ]}
+              />
+
+              <Select
+                value={ctcFilter}
+                onChange={(e) => setCtcFilter(e.target.value)}
+                options={[
+                  { label: 'All CTC Packages', value: 'all' },
+                  { label: 'CTC >= 10.0 LPA', value: '10' },
+                  { label: 'CTC >= 8.0 LPA', value: '8' },
+                  { label: 'CTC >= 5.0 LPA', value: '5' },
+                  { label: 'CTC >= 3.0 LPA', value: '3' },
+                ]}
+              />
+            </div>
+          </Card>
+
+          {/* Data Table */}
+          <Card className="overflow-hidden border-zinc-200">
+            {loading ? (
+              <div className="p-8 text-center text-xs text-zinc-500">Loading offers...</div>
+            ) : filteredOffers.length === 0 ? (
+              <div className="p-8 text-center text-xs text-zinc-500">No job offers found.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-zinc-700">
+                  <thead className="bg-zinc-100 border-b border-zinc-200 uppercase text-[11px] font-semibold text-zinc-600 tracking-wider">
+                    <tr>
+                      <th className="py-3 px-4">Company Name</th>
+                      <th className="py-3 px-4">Pipeline Stage</th>
+                      <th className="py-3 px-4">CTC & Package</th>
+                      <th className="py-3 px-4">Drive Date & Location</th>
+                      <th className="py-3 px-4">Mode</th>
+                      <th className="py-3 px-4">Approval Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 bg-white">
+                    {paginatedOffers.map((off) => {
+                      const stage = off.offer_status || 'cold';
+                      const stageBadge = 
+                        stage === 'drive_completed' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                        stage === 'hot' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                        stage === 'warm' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                        'bg-blue-100 text-blue-800 border-blue-300';
+                      const stageLabel = 
+                        stage === 'drive_completed' ? 'Drive Completed' :
+                        stage === 'hot' ? 'Hot' :
+                        stage === 'warm' ? 'Warm' : 'Cold';
+
+                      return (
+                        <tr key={off.offer_id} className="hover:bg-zinc-50 transition-colors">
+                          <td className="py-3 px-4">
+                            <div>
+                              <button
+                                onClick={() => navigate(`/offers/${off.offer_id}`)}
+                                className="font-bold text-zinc-900 hover:underline text-left text-sm"
+                              >
+                                {off.company?.name || 'Company Offer'}
+                              </button>
+                              <p className="text-[11px] text-zinc-500">
+                                {off.eligible_departments?.join(', ') || 'All Depts'}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-md border ${stageBadge}`}>
+                              {stageLabel}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold text-zinc-900">
+                            {off.ctc_lpa ? `${off.ctc_lpa} LPA` : 'TBD'}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1 font-medium text-zinc-900">
+                                <Calendar className="h-3 w-3 text-zinc-500" />
+                                <span>{off.drive_date || 'TBD'}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                <MapPin className="h-3 w-3 text-zinc-400" />
+                                <span>{off.job_location || 'Flexible'}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-zinc-800 uppercase text-[10px]">
+                            {off.drive_mode?.replace('_', ' ')}
+                          </td>
+                          <td className="py-3 px-4">
+                            <button
+                              onClick={() => {
+                                setOfferForApproval(off);
+                                setIsApprovalModalOpen(true);
+                              }}
+                              className="hover:opacity-80 transition-opacity text-left"
+                            >
+                              <Badge variant={off.approval_status as any}>
+                                {off.approval_status.replace('_', ' ').toUpperCase()}
+                              </Badge>
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => navigate(`/offers/${off.offer_id}`)}
+                                className="p-1 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
+                                title="View Offer Matrix & Register Students"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setOfferForApproval(off);
+                                  setIsApprovalModalOpen(true);
+                                }}
+                                className="p-1 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
+                                title="Approval Workflow"
+                              >
+                                <ShieldCheck className="h-4 w-4" />
+                              </button>
+                              {canCreateEdit && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedOffer(off);
+                                    setIsFormOpen(true);
+                                  }}
+                                  className="p-1 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
+                                  title="Edit"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => handleDeleteOffer(off.offer_id)}
+                                  className="p-1 rounded hover:bg-rose-50 text-rose-600 hover:text-rose-700"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredOffers.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
             />
-          </div>
-
-          <Select
-            value={approvalFilter}
-            onChange={(e) => setApprovalFilter(e.target.value)}
-            options={[
-              { label: 'All Approval Statuses', value: 'all' },
-              { label: 'Approved Offers', value: 'approved' },
-              { label: 'Pending Approval', value: 'pending_approval' },
-              { label: 'Draft Mode', value: 'draft' },
-              { label: 'Rejected', value: 'rejected' },
-            ]}
-          />
-
-          <Select
-            value={modeFilter}
-            onChange={(e) => setModeFilter(e.target.value)}
-            options={[
-              { label: 'All Drive Modes', value: 'all' },
-              { label: 'On Campus', value: 'on_campus' },
-              { label: 'Off Campus', value: 'off_campus' },
-              { label: 'Virtual Drive', value: 'virtual' },
-              { label: 'Pool Drive', value: 'pool_drive' },
-            ]}
-          />
-
-          <Select
-            value={ctcFilter}
-            onChange={(e) => setCtcFilter(e.target.value)}
-            options={[
-              { label: 'All CTC Packages', value: 'all' },
-              { label: 'CTC >= 10.0 LPA', value: '10' },
-              { label: 'CTC >= 8.0 LPA', value: '8' },
-              { label: 'CTC >= 5.0 LPA', value: '5' },
-              { label: 'CTC >= 3.0 LPA', value: '3' },
-            ]}
-          />
-        </div>
-      </Card>
-
-      {/* Data Table */}
-      <Card className="overflow-hidden border-zinc-200">
-        {loading ? (
-          <div className="p-8 text-center text-xs text-zinc-500">Loading offers...</div>
-        ) : filteredOffers.length === 0 ? (
-          <div className="p-8 text-center text-xs text-zinc-500">No job offers found.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-zinc-700">
-              <thead className="bg-zinc-100 border-b border-zinc-200 uppercase text-[11px] font-semibold text-zinc-600 tracking-wider">
-                <tr>
-                  <th className="py-3 px-4">Company Name</th>
-                  <th className="py-3 px-4">CTC & Package</th>
-                  <th className="py-3 px-4">Drive Date & Location</th>
-                  <th className="py-3 px-4">Mode</th>
-                  <th className="py-3 px-4">Approval Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 bg-white">
-                {paginatedOffers.map((off) => (
-                  <tr key={off.offer_id} className="hover:bg-zinc-50 transition-colors">
-                    <td className="py-3 px-4">
-                      <div>
-                        <button
-                          onClick={() => navigate(`/offers/${off.offer_id}`)}
-                          className="font-bold text-zinc-900 hover:underline text-left text-sm"
-                        >
-                          {off.company?.name || 'Company Offer'}
-                        </button>
-                        <p className="text-[11px] text-zinc-500">
-                          {off.eligible_departments?.join(', ') || 'All Depts'}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 font-mono font-bold text-zinc-900">
-                      {off.ctc_lpa ? `${off.ctc_lpa} LPA` : 'TBD'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1 font-medium text-zinc-900">
-                          <Calendar className="h-3 w-3 text-zinc-500" />
-                          <span>{off.drive_date || 'TBD'}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-zinc-500">
-                          <MapPin className="h-3 w-3 text-zinc-400" />
-                          <span>{off.job_location || 'Flexible'}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-zinc-800 uppercase text-[10px]">
-                      {off.drive_mode?.replace('_', ' ')}
-                    </td>
-                    <td className="py-3 px-4">
-                      <button
-                        onClick={() => {
-                          setOfferForApproval(off);
-                          setIsApprovalModalOpen(true);
-                        }}
-                        className="hover:opacity-80 transition-opacity text-left"
-                      >
-                        <Badge variant={off.approval_status as any}>
-                          {off.approval_status.replace('_', ' ').toUpperCase()}
-                        </Badge>
-                      </button>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => navigate(`/offers/${off.offer_id}`)}
-                          className="p-1 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
-                          title="View Offer Matrix & Register Students"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setOfferForApproval(off);
-                            setIsApprovalModalOpen(true);
-                          }}
-                          className="p-1 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
-                          title="Approval Workflow"
-                        >
-                          <ShieldCheck className="h-4 w-4" />
-                        </button>
-                        {canCreateEdit && (
-                          <button
-                            onClick={() => {
-                              setSelectedOffer(off);
-                              setIsFormOpen(true);
-                            }}
-                            className="p-1 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
-                            title="Edit"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button
-                            onClick={() => handleDeleteOffer(off.offer_id)}
-                            className="p-1 rounded hover:bg-rose-50 text-rose-600 hover:text-rose-700"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={filteredOffers.length}
-          pageSize={pageSize}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={setPageSize}
-        />
-      </Card>
+          </Card>
+        </>
+      )}
 
       {/* Approval Workflow Modal */}
       <OfferApprovalModal

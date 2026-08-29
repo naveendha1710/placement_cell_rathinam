@@ -89,6 +89,7 @@ export interface CompanyHrContact {
 
 export type DriveMode = 'on_campus' | 'virtual' | 'pooled';
 export type OfferDriveStatus = 'drafted' | 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+export type OfferStatus = 'cold' | 'warm' | 'hot' | 'drive_completed';
 
 export interface EligibilityCriteria {
   min_cgpa?: number;
@@ -110,6 +111,7 @@ export interface Offer {
   job_location?: string | null;
   drive_mode?: DriveMode | null;
   status: OfferDriveStatus;
+  offer_status?: OfferStatus | null;
   approval_status: ApprovalStatus;
   approved_by?: string | null;
   approved_at?: string | null;

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DataStore } from '../lib/store';
-import { Offer, DriveApplication, ApplicationFinalStatus } from '../types/database';
+import { Offer, DriveApplication, ApplicationFinalStatus, OfferStatus } from '../types/database';
 import { RegisterStudentsInlineForm } from '../components/offers/RegisterStudentsInlineForm';
 import { OfferApprovalModal } from '../components/offers/OfferApprovalModal';
 import { MatchScoresModal } from '../components/offers/MatchScoresModal';
+import { DriveCompletedPlacementsTable } from '../components/offers/DriveCompletedPlacementsTable';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
@@ -74,13 +75,56 @@ export const OfferDetail: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Header Controls */}
-      <div className="flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={() => navigate('/offers')} className="gap-1.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <Button variant="outline" size="sm" onClick={() => navigate('/offers')} className="gap-1.5 shrink-0">
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Offers</span>
         </Button>
 
-        <div className="flex items-center gap-3">
+        {/* Offer Lifecycle Pipeline Stage Selector */}
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider shrink-0">Pipeline Stage:</span>
+          <div className="flex items-center gap-1 p-1 bg-zinc-100 rounded-lg border border-zinc-200 text-xs">
+            {(['cold', 'warm', 'hot', 'drive_completed'] as OfferStatus[]).map((st) => {
+              const isCurrent = (offer.offer_status || 'cold') === st;
+              const labels: Record<OfferStatus, string> = {
+                cold: 'Cold',
+                warm: 'Warm',
+                hot: 'Hot',
+                drive_completed: 'Drive Completed',
+              };
+              return (
+                <button
+                  key={st}
+                  disabled={!canCreateEdit}
+                  onClick={async () => {
+                    await DataStore.saveOffer({
+                      ...offer,
+                      company_id: offer.company_id,
+                      offer_status: st,
+                    });
+                    await loadData();
+                  }}
+                  className={`px-2.5 py-1 rounded-md font-bold transition-all whitespace-nowrap ${
+                    isCurrent
+                      ? st === 'drive_completed'
+                        ? 'bg-emerald-700 text-white shadow-xs'
+                        : st === 'hot'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : st === 'warm'
+                        ? 'bg-orange-600 text-white shadow-xs'
+                        : 'bg-blue-600 text-white shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200'
+                  }`}
+                >
+                  {labels[st]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
           <Badge variant={offer.approval_status as any}>
             {offer.approval_status.replace('_', ' ').toUpperCase()}
           </Badge>
@@ -203,6 +247,15 @@ export const OfferDetail: React.FC = () => {
           eligibleDepartments={offer.eligible_departments || undefined}
           onClose={() => setIsRegisterOpen(false)}
           onSuccess={loadData}
+        />
+      )}
+
+      {/* Post-Drive Completed Selection Table */}
+      {offer.offer_status === 'drive_completed' && (
+        <DriveCompletedPlacementsTable
+          offer={offer}
+          applications={applications}
+          onRefresh={loadData}
         />
       )}
 

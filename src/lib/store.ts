@@ -511,6 +511,7 @@ export const DataStore = {
       job_location: offerData.job_location || null,
       drive_mode: offerData.drive_mode || 'on_campus',
       status: offerData.status || 'drafted',
+      offer_status: offerData.offer_status || 'cold',
       approval_status: existingApprovalStatus,
       approved_by: existingApprovedBy,
       approved_at: existingApprovedAt,
@@ -677,6 +678,49 @@ export const DataStore = {
     }
 
     return true;
+  },
+
+  async markCandidatesAsPlaced(offer_id: string, selectedStudentIds: string[]): Promise<number> {
+    const apps = await this.getApplications(offer_id);
+    const students = await this.getStudents();
+    let updatedCount = 0;
+
+    for (const app of apps) {
+      const isSelected = selectedStudentIds.includes(app.student_id);
+      if (isSelected) {
+        app.final_status = 'selected';
+        app.offer_accepted = true;
+        updatedCount++;
+
+        // Automatically change student overall placement status to 'placed'
+        const st = students.find(s => s.student_id === app.student_id);
+        if (st) {
+          st.placement_status = 'placed';
+          await this.saveStudent(st);
+        }
+
+        if (!isMockMode) {
+          await supabase
+            .from('drive_applications')
+            .update({ final_status: 'selected', offer_accepted: true })
+            .eq('application_id', app.application_id);
+        }
+      }
+    }
+
+    if (isMockMode) {
+      const allApps = getStored<DriveApplication[]>(STORAGE_KEYS.APPLICATIONS, INITIAL_APPLICATIONS);
+      const appSet = new Set(selectedStudentIds);
+      allApps.forEach(a => {
+        if (a.offer_id === offer_id && appSet.has(a.student_id)) {
+          a.final_status = 'selected';
+          a.offer_accepted = true;
+        }
+      });
+      setStored(STORAGE_KEYS.APPLICATIONS, allApps);
+    }
+
+    return updatedCount;
   },
 
   // AI MATCH SCORING & DOCUMENT EXTRACTION HELPERS
