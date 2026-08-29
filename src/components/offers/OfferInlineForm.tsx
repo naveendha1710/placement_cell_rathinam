@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Offer, Company, DriveMode, OfferDriveStatus } from '../../types/database';
 import { DataStore } from '../../lib/store';
+import { extractTextFromDocumentFile } from '../../utils/documentExtractor';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
-import { X } from 'lucide-react';
+import { X, Trash2, FileText, CheckCircle } from 'lucide-react';
 
 interface OfferInlineFormProps {
   onClose: () => void;
@@ -111,9 +112,14 @@ export const OfferInlineForm: React.FC<OfferInlineFormProps> = ({
     try {
       const fileName = `jd_${Date.now()}_${file.name}`;
       const path = await DataStore.uploadFile('student_files', fileName, file);
+      
+      // Extract full text from .docx, .pdf, or text file
+      const extractedText = await extractTextFromDocumentFile(file);
+
       setFormData(prev => ({
         ...prev,
         jd_files: [...prev.jd_files, path],
+        jd_text: prev.jd_text ? `${prev.jd_text}\n\n${extractedText}` : extractedText,
       }));
     } catch (err) {
       console.error(err);
@@ -121,6 +127,13 @@ export const OfferInlineForm: React.FC<OfferInlineFormProps> = ({
     } finally {
       setUploadingJd(false);
     }
+  };
+
+  const handleRemoveJdFile = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      jd_files: prev.jd_files.filter((_, idx) => idx !== index),
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -143,6 +156,10 @@ export const OfferInlineForm: React.FC<OfferInlineFormProps> = ({
         drive_date: formData.drive_date || null,
         drive_mode: formData.drive_mode,
         status: formData.status,
+        approval_status: offer?.approval_status || 'approved',
+        approved_by: offer?.approved_by || null,
+        approved_at: offer?.approved_at || null,
+        rejection_reason: offer?.rejection_reason || null,
         eligible_departments: formData.eligible_departments,
         eligibility_criteria: {
           min_cgpa: formData.min_cgpa ? parseFloat(formData.min_cgpa) : undefined,
@@ -343,13 +360,27 @@ export const OfferInlineForm: React.FC<OfferInlineFormProps> = ({
               className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-zinc-900 file:text-white cursor-pointer"
             />
             {formData.jd_files.length > 0 && (
-              <div className="mt-2 space-y-1">
-                <p className="text-[11px] font-bold text-zinc-700">Uploaded JD Documents:</p>
-                {formData.jd_files.map((file, idx) => (
-                  <p key={idx} className="text-[11px] text-emerald-700 font-medium truncate">
-                    ✓ {file}
-                  </p>
-                ))}
+              <div className="mt-2 space-y-1.5">
+                <p className="text-[11px] font-bold text-zinc-700">Uploaded JD Documents ({formData.jd_files.length}):</p>
+                {formData.jd_files.map((file, idx) => {
+                  const fileName = file.split('/').pop() || file;
+                  return (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-zinc-50 border border-zinc-200 rounded-md text-xs">
+                      <div className="flex items-center gap-1.5 text-emerald-700 font-medium truncate max-w-[85%]">
+                        <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{fileName}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveJdFile(idx)}
+                        className="text-rose-600 hover:text-rose-800 p-1 rounded hover:bg-rose-50 transition-colors"
+                        title="Delete JD File"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

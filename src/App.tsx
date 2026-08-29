@@ -7,12 +7,14 @@ import { AppLayout } from './components/layout/AppLayout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Students } from './pages/Students';
+import { StudentDetail } from './pages/StudentDetail';
 import { Companies } from './pages/Companies';
 import { CompanyDetail } from './pages/CompanyDetail';
 import { Offers } from './pages/Offers';
 import { OfferDetail } from './pages/OfferDetail';
 import { StudentRegisterPage } from './pages/StudentRegisterPage';
 import { UserManagement } from './pages/UserManagement';
+import { Reports } from './pages/Reports';
 
 export const App: React.FC = () => {
   return (
@@ -30,10 +32,16 @@ export const App: React.FC = () => {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/students" element={<Students />} />
+              <Route path="/students/:id" element={<StudentDetail />} />
               <Route path="/companies" element={<Companies />} />
               <Route path="/companies/:id" element={<CompanyDetail />} />
               <Route path="/offers" element={<Offers />} />
               <Route path="/offers/:id" element={<OfferDetail />} />
+
+              {/* Reports Route (Hidden for data_entry) */}
+              <Route element={<ProtectedRoute allowedRoles={['super_admin', 'placement_coordinator', 'report_viewer', 'dept_coordinator']} />}>
+                <Route path="/reports" element={<Reports />} />
+              </Route>
 
               {/* Super Admin Only Route */}
               <Route element={<ProtectedRoute allowedRoles={['super_admin']} />}>

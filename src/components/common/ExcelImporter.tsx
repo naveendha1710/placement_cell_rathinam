@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { DataStore } from '../../lib/store';
+import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle } from 'lucide-react';
@@ -11,6 +12,7 @@ interface ExcelImporterProps {
 }
 
 export const ExcelImporter: React.FC<ExcelImporterProps> = ({ type, onSuccess }) => {
+  const { role, departmentScope } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [resultSummary, setResultSummary] = useState<{
@@ -93,7 +95,8 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({ type, onSuccess })
         }
 
         if (type === 'students') {
-          const summary = await DataStore.bulkInsertStudents(rows);
+          const activeScope = (role === 'dept_coordinator') ? departmentScope : null;
+          const summary = await DataStore.bulkInsertStudents(rows, activeScope);
           setResultSummary(summary);
         } else {
           const summary = await DataStore.bulkInsertCompanies(rows);

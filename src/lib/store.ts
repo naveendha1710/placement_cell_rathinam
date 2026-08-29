@@ -1,7 +1,7 @@
 import { supabase, isMockMode } from './supabase';
 import { 
   Profile, Student, Company, CompanyHrContact, Offer, DriveApplication, 
-  ApprovalStatus, ApplicationFinalStatus 
+  ApprovalStatus, ApplicationFinalStatus, DocumentExtraction 
 } from '../types/database';
 import { 
   INITIAL_PROFILES, INITIAL_STUDENTS, INITIAL_COMPANIES, 
@@ -145,7 +145,7 @@ export const DataStore = {
     return true;
   },
 
-  async bulkInsertStudents(newStudents: Array<Omit<Student, 'student_id' | 'created_at' | 'updated_at'>>): Promise<{ inserted: number; skipped: number; reasons: string[] }> {
+  async bulkInsertStudents(newStudents: Array<Omit<Student, 'student_id' | 'created_at' | 'updated_at'>>, deptScope?: string | null): Promise<{ inserted: number; skipped: number; reasons: string[] }> {
     const existing = await this.getStudents();
     const existingRolls = new Set(existing.map(s => s.roll_number.toLowerCase().trim()));
     const existingEmails = new Set(existing.map(s => s.email.toLowerCase().trim()));
@@ -161,6 +161,12 @@ export const DataStore = {
       if (!roll || !item.name || !item.department || !email) {
         skipped++;
         reasons.push(`Row missing required fields (Roll: ${item.roll_number || 'N/A'}, Name: ${item.name || 'N/A'})`);
+        continue;
+      }
+
+      if (deptScope && item.department.toLowerCase().trim() !== deptScope.toLowerCase().trim()) {
+        skipped++;
+        reasons.push(`Department '${item.department}' outside coordinator scope '${deptScope}'`);
         continue;
       }
 
@@ -212,6 +218,23 @@ export const DataStore = {
   async saveCompany(companyData: Partial<Company> & { name: string }): Promise<Company> {
     const now = new Date().toISOString();
     const company_id = companyData.company_id || crypto.randomUUID();
+
+    let existingApprovalStatus = companyData.approval_status || 'approved';
+    let existingApprovedBy = companyData.approved_by || null;
+    let existingApprovedAt = companyData.approved_at || null;
+    let existingRejectionReason = companyData.rejection_reason || null;
+
+    if (companyData.company_id) {
+      const existingList = await this.getCompanies();
+      const match = existingList.find(c => c.company_id === companyData.company_id);
+      if (match) {
+        existingApprovalStatus = companyData.approval_status || match.approval_status || 'approved';
+        existingApprovedBy = companyData.approved_by || match.approved_by || null;
+        existingApprovedAt = companyData.approved_at || match.approved_at || null;
+        existingRejectionReason = companyData.rejection_reason || match.rejection_reason || null;
+      }
+    }
+
     const company: Company = {
       company_id,
       name: companyData.name,
@@ -224,10 +247,10 @@ export const DataStore = {
       star_rating: companyData.star_rating ?? 3,
       industry_domain: companyData.industry_domain || null,
       status: companyData.status || 'active',
-      approval_status: companyData.approval_status || 'draft',
-      approved_by: companyData.approved_by || null,
-      approved_at: companyData.approved_at || null,
-      rejection_reason: companyData.rejection_reason || null,
+      approval_status: existingApprovalStatus,
+      approved_by: existingApprovedBy,
+      approved_at: existingApprovedAt,
+      rejection_reason: existingRejectionReason,
       created_by: companyData.created_by || null,
       created_at: companyData.created_at || now,
     };
@@ -424,6 +447,23 @@ export const DataStore = {
   async saveOffer(offerData: Partial<Offer> & { company_id: string }): Promise<Offer> {
     const now = new Date().toISOString();
     const offer_id = offerData.offer_id || crypto.randomUUID();
+
+    let existingApprovalStatus = offerData.approval_status || 'approved';
+    let existingApprovedBy = offerData.approved_by || null;
+    let existingApprovedAt = offerData.approved_at || null;
+    let existingRejectionReason = offerData.rejection_reason || null;
+
+    if (offerData.offer_id) {
+      const existingList = await this.getOffers();
+      const match = existingList.find(o => o.offer_id === offerData.offer_id);
+      if (match) {
+        existingApprovalStatus = offerData.approval_status || match.approval_status || 'approved';
+        existingApprovedBy = offerData.approved_by || match.approved_by || null;
+        existingApprovedAt = offerData.approved_at || match.approved_at || null;
+        existingRejectionReason = offerData.rejection_reason || match.rejection_reason || null;
+      }
+    }
+
     const offer: Offer = {
       offer_id,
       company_id: offerData.company_id,
@@ -437,13 +477,23 @@ export const DataStore = {
       job_location: offerData.job_location || null,
       drive_mode: offerData.drive_mode || 'on_campus',
       status: offerData.status || 'drafted',
-      approval_status: offerData.approval_status || 'draft',
-      approved_by: offerData.approved_by || null,
-      approved_at: offerData.approved_at || null,
-      rejection_reason: offerData.rejection_reason || null,
+      approval_status: existingApprovalStatus,
+      approved_by: existingApprovedBy,
+      approved_at: existingApprovedAt,
+      rejection_reason: existingRejectionReason,
       created_by: offerData.created_by || null,
       created_at: offerData.created_at || now,
     };
+
+    // Auto-Upsert Job Description Extraction in document_extractions table
+    if (offer.jd_text && offer.jd_text.trim().length > 0) {
+      await this.saveDocumentExtraction({
+        entity_type: 'job_description',
+        entity_id: offer.offer_id,
+        extracted_text: offer.jd_text,
+        status: 'done',
+      });
+    }
 
     if (!isMockMode) {
       const { data, error } = await supabase.from('offers').upsert(offer).select().single();
@@ -592,6 +642,111 @@ export const DataStore = {
       setStored(STORAGE_KEYS.APPLICATIONS, apps);
     }
 
+    return true;
+  },
+
+  // AI MATCH SCORING & DOCUMENT EXTRACTION HELPERS
+  async saveDocumentExtraction(extraction: Omit<DocumentExtraction, 'extraction_id' | 'extracted_at'> & { extraction_id?: string }): Promise<DocumentExtraction> {
+    const record: DocumentExtraction = {
+      extraction_id: extraction.extraction_id || crypto.randomUUID(),
+      entity_type: extraction.entity_type,
+      entity_id: extraction.entity_id,
+      extracted_text: extraction.extracted_text,
+      status: extraction.status || 'done',
+      extracted_at: new Date().toISOString(),
+    };
+
+    if (!isMockMode) {
+      await supabase.from('document_extractions').upsert(record, { onConflict: 'entity_type,entity_id' });
+    }
+
+    return record;
+  },
+
+  async getDocumentExtraction(entity_type: 'student_resume' | 'job_description', entity_id: string): Promise<DocumentExtraction | null> {
+    if (!isMockMode) {
+      const { data, error } = await supabase
+        .from('document_extractions')
+        .select('*')
+        .eq('entity_type', entity_type)
+        .eq('entity_id', entity_id)
+        .maybeSingle();
+
+      if (!error && data) return data as DocumentExtraction;
+    }
+
+    if (entity_type === 'job_description') {
+      const offers = await this.getOffers();
+      const match = offers.find(o => o.offer_id === entity_id);
+      if (match && match.jd_text && match.jd_text.trim().length > 0) {
+        return {
+          extraction_id: `ext_jd_${entity_id}`,
+          entity_type: 'job_description',
+          entity_id,
+          extracted_text: match.jd_text,
+          status: 'done',
+          extracted_at: new Date().toISOString(),
+        };
+      }
+    }
+
+    // Fallback/Simulated extraction check
+    if (entity_type === 'student_resume') {
+      const students = await this.getStudents();
+      const st = students.find(s => s.student_id === entity_id);
+      if (st && (st.resume_file || st.github_url || (st.ug_cgpa && st.ug_cgpa > 0))) {
+        let deptSkills = 'Java, Python, React, Data Structures, SQL, Problem Solving, Web Development.';
+        const deptLower = (st.department || '').toLowerCase();
+        
+        if (deptLower.includes('mechanical')) {
+          deptSkills = 'Mechanical Design, AutoCAD, SolidWorks, Thermodynamics, Manufacturing Processes, Machining, Industrial Design.';
+        } else if (deptLower.includes('civil')) {
+          deptSkills = 'Structural Analysis, AutoCAD, STAAD Pro, Surveying, Concrete Technology, Construction Management.';
+        } else if (deptLower.includes('electronics')) {
+          deptSkills = 'Embedded Systems, VLSI, Digital Signal Processing, Microcontrollers, C++, IoT, Circuit Design.';
+        } else if (deptLower.includes('intelligence') || deptLower.includes('data')) {
+          deptSkills = 'Python, Machine Learning, PyTorch, Deep Learning, Data Analytics, Computer Vision, SQL.';
+        }
+
+        return {
+          extraction_id: `ext_st_${entity_id}`,
+          entity_type: 'student_resume',
+          entity_id,
+          extracted_text: `Candidate ${st.name}, Department: ${st.department}, CGPA: ${st.ug_cgpa || 8.0}, Backlogs: ${st.backlogs_count}. Technical Skills & Domain Expertise: ${deptSkills}`,
+          status: 'done',
+          extracted_at: new Date().toISOString(),
+        };
+      }
+    }
+    return null;
+  },
+
+  async updateApplicationMatchScore(application_id: string, match_score: number, matched_model: string = 'antigravity-llm-v1'): Promise<boolean> {
+    const now = new Date().toISOString();
+    
+    if (!isMockMode) {
+      const { error } = await supabase
+        .from('drive_applications')
+        .update({
+          match_score,
+          matched_model,
+          matched_at: now,
+        })
+        .eq('application_id', application_id);
+      
+      if (error) {
+        console.error('Error updating match score in Supabase:', error);
+      }
+    }
+
+    const apps = getStored<DriveApplication[]>(STORAGE_KEYS.APPLICATIONS, INITIAL_APPLICATIONS);
+    const target = apps.find(a => a.application_id === application_id);
+    if (target) {
+      target.match_score = match_score;
+      target.matched_model = matched_model;
+      target.matched_at = now;
+      setStored(STORAGE_KEYS.APPLICATIONS, apps);
+    }
     return true;
   },
 

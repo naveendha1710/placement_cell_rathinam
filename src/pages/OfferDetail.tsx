@@ -4,19 +4,20 @@ import { DataStore } from '../lib/store';
 import { Offer, DriveApplication, ApplicationFinalStatus } from '../types/database';
 import { RegisterStudentsInlineForm } from '../components/offers/RegisterStudentsInlineForm';
 import { OfferApprovalModal } from '../components/offers/OfferApprovalModal';
+import { MatchScoresModal } from '../components/offers/MatchScoresModal';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { 
   Briefcase, ArrowLeft, Calendar, MapPin, UserPlus, 
-  ShieldCheck, FileText, Check, X, Share2 
+  ShieldCheck, FileText, Check, X, Share2, Sparkles, Trash2 
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const OfferDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, canUpdateApplicationStatus, departmentScope } = useAuth();
+  const { user, role, canCreateEdit, canUpdateApplicationStatus, departmentScope } = useAuth();
   
   const [offer, setOffer] = useState<Offer | null>(null);
   const [applications, setApplications] = useState<DriveApplication[]>([]);
@@ -24,6 +25,7 @@ export const OfferDetail: React.FC = () => {
 
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isApprovalOpen, setIsApprovalOpen] = useState(false);
+  const [isMatchScoresOpen, setIsMatchScoresOpen] = useState(false);
 
   const loadData = async () => {
     if (!id) return;
@@ -135,9 +137,50 @@ export const OfferDetail: React.FC = () => {
             {offer.jd_text && (
               <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-700 mt-2">
                 <p className="font-bold text-zinc-900 mb-1 flex items-center gap-1">
-                  <FileText className="h-3.5 w-3.5" /> Job Description:
+                  <FileText className="h-3.5 w-3.5 text-zinc-700" /> Job Description:
                 </p>
-                <p className="whitespace-pre-line leading-relaxed">{offer.jd_text}</p>
+                <p className="whitespace-pre-line leading-relaxed text-zinc-800">{offer.jd_text}</p>
+              </div>
+            )}
+
+            {offer.jd_files && offer.jd_files.length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                <p className="text-[11px] font-bold text-zinc-700">Uploaded JD Attachments ({offer.jd_files.length}):</p>
+                {offer.jd_files.map((file, idx) => {
+                  const fileName = file.split('/').pop() || file;
+                  return (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-zinc-50 border border-zinc-200 rounded-md text-xs">
+                      <a
+                        href={file}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 text-blue-700 font-semibold hover:underline truncate max-w-[80%]"
+                      >
+                        <FileText className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                        <span className="truncate">{fileName}</span>
+                      </a>
+                      {canCreateEdit && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!confirm(`Delete JD document '${fileName}'?`)) return;
+                            const updated = (offer.jd_files || []).filter(f => f !== file);
+                            await DataStore.saveOffer({
+                              ...offer,
+                              company_id: offer.company_id,
+                              jd_files: updated,
+                            });
+                            await loadData();
+                          }}
+                          className="p-1 rounded text-rose-600 hover:bg-rose-50 transition-colors"
+                          title="Delete JD Attachment"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -175,6 +218,16 @@ export const OfferDetail: React.FC = () => {
 
           {isApproved ? (
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsMatchScoresOpen(true)}
+                className="gap-1.5 border-purple-300 text-purple-900 font-semibold bg-purple-50 hover:bg-purple-100"
+              >
+                <Sparkles className="h-4 w-4 text-purple-600" />
+                <span>View Match Scores</span>
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -220,74 +273,82 @@ export const OfferDetail: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 bg-white">
-                {applications.map((app) => (
-                  <tr key={app.application_id} className="hover:bg-zinc-50 transition-colors">
-                    <td className="py-3 px-4 font-mono font-medium text-zinc-900">
-                      {app.student?.roll_number || 'N/A'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div>
-                        <p className="font-semibold text-zinc-900">{app.student?.name || 'Unknown'}</p>
-                        <p className="text-[11px] text-zinc-500">{app.student?.email}</p>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 font-medium text-zinc-800">
-                      {app.student?.department}
-                    </td>
-                    <td className="py-3 px-4">
-                      {app.student?.ug_cgpa ? app.student.ug_cgpa.toFixed(2) : 'N/A'} / {' '}
-                      <span className={app.student && app.student.backlogs_count > 0 ? 'text-rose-600 font-bold' : ''}>
-                        {app.student?.backlogs_count || 0}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-zinc-500">
-                      {new Date(app.applied_at).toLocaleDateString()}
-                    </td>
-                    <td className="py-3 px-4">
-                      {canUpdateApplicationStatus ? (
-                        <select
-                          value={app.final_status}
-                          onChange={(e) => handleStatusChange(app.application_id, e.target.value as ApplicationFinalStatus, app.offer_accepted)}
-                          className="text-xs bg-white border border-zinc-300 rounded px-2 py-1 font-semibold text-zinc-900 focus:ring-1 focus:ring-zinc-900"
-                        >
-                          <option value="applied">APPLIED</option>
-                          <option value="shortlisted">SHORTLISTED</option>
-                          <option value="interviewed">INTERVIEWED</option>
-                          <option value="selected">SELECTED</option>
-                          <option value="rejected">REJECTED</option>
-                          <option value="no_show">NO SHOW</option>
-                        </select>
-                      ) : (
-                        <Badge variant={app.final_status === 'selected' ? 'approved' : app.final_status === 'rejected' ? 'rejected' : 'pending'}>
-                          {app.final_status.toUpperCase()}
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      {app.final_status === 'selected' ? (
-                        canUpdateApplicationStatus ? (
-                          <button
-                            onClick={() => handleStatusChange(app.application_id, 'selected', !app.offer_accepted)}
-                            className={`px-2.5 py-1 rounded text-xs font-bold transition-colors flex items-center gap-1 ${
-                              app.offer_accepted
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
-                            }`}
+                {applications.map((app) => {
+                  const canEditCandidateStatus = canUpdateApplicationStatus && (
+                    role !== 'dept_coordinator' || 
+                    !departmentScope || 
+                    (app.student?.department && app.student.department.toLowerCase() === departmentScope.toLowerCase())
+                  );
+
+                  return (
+                    <tr key={app.application_id} className="hover:bg-zinc-50 transition-colors">
+                      <td className="py-3 px-4 font-mono font-medium text-zinc-900">
+                        {app.student?.roll_number || 'N/A'}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <p className="font-semibold text-zinc-900">{app.student?.name || 'Unknown'}</p>
+                          <p className="text-[11px] text-zinc-500">{app.student?.email}</p>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 font-medium text-zinc-800">
+                        {app.student?.department}
+                      </td>
+                      <td className="py-3 px-4">
+                        {app.student?.ug_cgpa ? app.student.ug_cgpa.toFixed(2) : 'N/A'} / {' '}
+                        <span className={app.student && app.student.backlogs_count > 0 ? 'text-rose-600 font-bold' : ''}>
+                          {app.student?.backlogs_count || 0}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-zinc-500">
+                        {new Date(app.applied_at).toLocaleDateString()}
+                      </td>
+                      <td className="py-3 px-4">
+                        {canEditCandidateStatus ? (
+                          <select
+                            value={app.final_status}
+                            onChange={(e) => handleStatusChange(app.application_id, e.target.value as ApplicationFinalStatus, app.offer_accepted)}
+                            className="text-xs bg-white border border-zinc-300 rounded px-2 py-1 font-semibold text-zinc-900 focus:ring-1 focus:ring-zinc-900"
                           >
-                            {app.offer_accepted ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                            {app.offer_accepted ? 'ACCEPTED' : 'PENDING'}
-                          </button>
+                            <option value="applied">APPLIED</option>
+                            <option value="shortlisted">SHORTLISTED</option>
+                            <option value="interviewed">INTERVIEWED</option>
+                            <option value="selected">SELECTED</option>
+                            <option value="rejected">REJECTED</option>
+                            <option value="no_show">NO SHOW</option>
+                          </select>
                         ) : (
-                          <span className="font-semibold text-emerald-700">
-                            {app.offer_accepted ? 'Accepted' : 'Pending'}
-                          </span>
-                        )
-                      ) : (
-                        <span className="text-zinc-400 text-[11px]">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                          <Badge variant={app.final_status === 'selected' ? 'approved' : app.final_status === 'rejected' ? 'rejected' : 'pending'}>
+                            {app.final_status.toUpperCase()}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        {app.final_status === 'selected' ? (
+                          canEditCandidateStatus ? (
+                            <button
+                              onClick={() => handleStatusChange(app.application_id, 'selected', !app.offer_accepted)}
+                              className={`px-2.5 py-1 rounded text-xs font-bold transition-colors flex items-center gap-1 ${
+                                app.offer_accepted
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                              }`}
+                            >
+                              {app.offer_accepted ? <Check className="h-3 w-3" /> : <X className="h-3 w-3 text-zinc-400" />}
+                              {app.offer_accepted ? 'ACCEPTED' : 'PENDING'}
+                            </button>
+                          ) : (
+                            <span className="font-semibold text-emerald-700">
+                              {app.offer_accepted ? 'Accepted' : 'Pending'}
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-zinc-400 text-[11px]">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -311,6 +372,15 @@ export const OfferDetail: React.FC = () => {
           await DataStore.updateOfferApproval(offer.offer_id, 'pending_approval');
           await loadData();
         }}
+      />
+
+      {/* AI Match Scores Modal */}
+      <MatchScoresModal
+        isOpen={isMatchScoresOpen}
+        onClose={() => setIsMatchScoresOpen(false)}
+        offer={offer}
+        applications={applications}
+        onUpdate={loadData}
       />
     </div>
   );

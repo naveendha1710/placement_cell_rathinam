@@ -1,24 +1,32 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DataStore } from '../lib/store';
 import { Student } from '../types/database';
 import { useAuth } from '../context/AuthContext';
 import { StudentInlineForm } from '../components/students/StudentInlineForm';
 import { ExcelImporter } from '../components/common/ExcelImporter';
+import { Pagination } from '../components/common/Pagination';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { Select } from '../components/ui/Select';
-import { Search, Plus, Edit, Trash2, GraduationCap } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, GraduationCap, Eye, CheckCircle2, Clock, UserX } from 'lucide-react';
 
 export const Students: React.FC = () => {
+  const navigate = useNavigate();
   const { departmentScope, canCreateEdit, canDelete } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters & Pagination
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState(departmentScope || 'all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [residencyFilter, setResidencyFilter] = useState('all');
+  const [cgpaFilter, setCgpaFilter] = useState('all');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Inline Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -41,6 +49,10 @@ export const Students: React.FC = () => {
     loadStudents();
   }, [departmentScope]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, deptFilter, statusFilter, residencyFilter, cgpaFilter]);
+
   const handleSaveStudent = async (studentData: Partial<Student> & { name: string; roll_number: string; email: string; department: string }) => {
     await DataStore.saveStudent(studentData);
     setIsFormOpen(false);
@@ -61,8 +73,19 @@ export const Students: React.FC = () => {
       st.email.toLowerCase().includes(search.toLowerCase());
     const matchesDept = deptFilter === 'all' || st.department === deptFilter;
     const matchesStatus = statusFilter === 'all' || st.placement_status === statusFilter;
-    return matchesSearch && matchesDept && matchesStatus;
+    const matchesResidency = residencyFilter === 'all' || st.residency === residencyFilter;
+    const matchesCgpa = cgpaFilter === 'all' || (st.ug_cgpa !== null && st.ug_cgpa !== undefined && st.ug_cgpa >= parseFloat(cgpaFilter));
+    
+    return matchesSearch && matchesDept && matchesStatus && matchesResidency && matchesCgpa;
   });
+
+  const totalPages = Math.ceil(filteredStudents.length / pageSize);
+  const paginatedStudents = filteredStudents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const totalCount = students.length;
+  const placedCount = students.filter(s => s.placement_status === 'placed').length;
+  const unplacedCount = students.filter(s => s.placement_status === 'unplaced').length;
+  const optedOutCount = students.filter(s => s.placement_status === 'opted_out').length;
 
   return (
     <div className="space-y-6">
@@ -95,6 +118,49 @@ export const Students: React.FC = () => {
         </div>
       </div>
 
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5">
+          <div className="p-2.5 rounded-lg bg-zinc-900 text-white shrink-0">
+            <GraduationCap className="h-5 w-5" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Total Registered</span>
+            <span className="text-xl font-bold text-zinc-900 font-mono">{totalCount}</span>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5">
+          <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Placed Candidates</span>
+            <span className="text-xl font-bold text-emerald-700 font-mono">{placedCount}</span>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5">
+          <div className="p-2.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+            <Clock className="h-5 w-5" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Unplaced Candidates</span>
+            <span className="text-xl font-bold text-amber-700 font-mono">{unplacedCount}</span>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5">
+          <div className="p-2.5 rounded-lg bg-zinc-100 text-zinc-700 border border-zinc-200 shrink-0">
+            <UserX className="h-5 w-5" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Opted Out</span>
+            <span className="text-xl font-bold text-zinc-800 font-mono">{optedOutCount}</span>
+          </div>
+        </Card>
+      </div>
+
       {/* Inline Form Container */}
       {isFormOpen && (
         <StudentInlineForm
@@ -105,16 +171,16 @@ export const Students: React.FC = () => {
       )}
 
       {/* Filter Bar */}
-      <Card className="p-4 bg-white border-zinc-200">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
+      <Card className="p-4 bg-white border-zinc-200 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="relative md:col-span-2 lg:col-span-1">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
             <input
               type="text"
-              placeholder="Search by roll no, name, or email..."
+              placeholder="Search by roll, name, email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-sm rounded-md border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
             />
           </div>
 
@@ -128,6 +194,9 @@ export const Students: React.FC = () => {
                 { label: 'Information Technology', value: 'Information Technology' },
                 { label: 'Electronics & Communication', value: 'Electronics & Communication' },
                 { label: 'Mechanical Engineering', value: 'Mechanical Engineering' },
+                { label: 'Civil Engineering', value: 'Civil Engineering' },
+                { label: 'Artificial Intelligence & Data Science', value: 'Artificial Intelligence & Data Science' },
+                { label: 'Master of Computer Applications', value: 'Master of Computer Applications' },
               ]}
             />
           )}
@@ -137,9 +206,31 @@ export const Students: React.FC = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
             options={[
               { label: 'All Placement Statuses', value: 'all' },
-              { label: 'Unplaced', value: 'unplaced' },
-              { label: 'Placed', value: 'placed' },
+              { label: 'Unplaced Only', value: 'unplaced' },
+              { label: 'Placed Only', value: 'placed' },
               { label: 'Opted Out', value: 'opted_out' },
+            ]}
+          />
+
+          <Select
+            value={residencyFilter}
+            onChange={(e) => setResidencyFilter(e.target.value)}
+            options={[
+              { label: 'All Residencies', value: 'all' },
+              { label: 'Day Scholar', value: 'day_scholar' },
+              { label: 'Hosteller', value: 'hosteller' },
+            ]}
+          />
+
+          <Select
+            value={cgpaFilter}
+            onChange={(e) => setCgpaFilter(e.target.value)}
+            options={[
+              { label: 'All CGPA Scores', value: 'all' },
+              { label: 'CGPA >= 8.5 (High Performers)', value: '8.5' },
+              { label: 'CGPA >= 7.5 (First Class)', value: '7.5' },
+              { label: 'CGPA >= 6.5', value: '6.5' },
+              { label: 'CGPA >= 6.0', value: '6.0' },
             ]}
           />
         </div>
@@ -168,12 +259,24 @@ export const Students: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 bg-white">
-                {filteredStudents.map((st) => (
+                {paginatedStudents.map((st) => (
                   <tr key={st.student_id} className="hover:bg-zinc-50 transition-colors">
-                    <td className="py-3 px-4 font-mono font-medium text-zinc-900">{st.roll_number}</td>
+                    <td className="py-3 px-4">
+                      <button
+                        onClick={() => navigate(`/students/${st.student_id}`)}
+                        className="font-mono font-bold text-zinc-900 hover:underline text-left"
+                      >
+                        {st.roll_number}
+                      </button>
+                    </td>
                     <td className="py-3 px-4">
                       <div>
-                        <p className="font-semibold text-zinc-900">{st.name}</p>
+                        <button
+                          onClick={() => navigate(`/students/${st.student_id}`)}
+                          className="font-semibold text-zinc-900 hover:underline text-left"
+                        >
+                          {st.name}
+                        </button>
                         <p className="text-[11px] text-zinc-500">{st.email}</p>
                       </div>
                     </td>
@@ -193,6 +296,13 @@ export const Students: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => navigate(`/students/${st.student_id}`)}
+                          className="p-1 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
+                          title="View 70/30 Student Profile & Attended Drives"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
                         {canCreateEdit && (
                           <button
                             onClick={() => {
@@ -222,6 +332,15 @@ export const Students: React.FC = () => {
             </table>
           </div>
         )}
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredStudents.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+        />
       </Card>
     </div>
   );

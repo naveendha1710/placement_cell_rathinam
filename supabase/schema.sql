@@ -111,10 +111,23 @@ create table if not exists drive_applications (
   applied_at timestamptz default now(),
   match_score numeric,
   match_explanation text,
+  matched_model text,
+  matched_at timestamptz,
   round_wise_status jsonb default '{}',   -- e.g. {"resume_shortlist": "passed", "technical": "pending"}
   final_status text default 'applied' check (final_status in ('applied','shortlisted','interviewed','selected','rejected','no_show')),
   offer_accepted boolean default false,
   unique (offer_id, student_id)
+);
+
+-- 7. DOCUMENT EXTRACTIONS TABLE
+create table if not exists document_extractions (
+  extraction_id uuid primary key default gen_random_uuid(),
+  entity_type text not null check (entity_type in ('student_resume', 'job_description')),
+  entity_id uuid not null,
+  extracted_text text not null,
+  status text default 'done' check (status in ('pending', 'processing', 'done', 'failed')),
+  extracted_at timestamptz default now(),
+  unique (entity_type, entity_id)
 );
 
 -- DISABLE ROW LEVEL SECURITY ON ALL TABLES (Per architecture spec)
@@ -124,8 +137,9 @@ alter table companies disable row level security;
 alter table company_hr_contacts disable row level security;
 alter table offers disable row level security;
 alter table drive_applications disable row level security;
+alter table document_extractions disable row level security;
 
--- SAFE MIGRATION CHECK: Ensure all 27 student columns exist if table was previously created
+-- SAFE MIGRATION CHECKS: Ensure columns exist if tables were created previously
 alter table students add column if not exists roll_number text;
 alter table students add column if not exists name text;
 alter table students add column if not exists department text;
@@ -149,6 +163,11 @@ alter table students add column if not exists email text;
 alter table students add column if not exists mobile_number text;
 alter table students add column if not exists backlogs_count int default 0;
 alter table students add column if not exists placement_status text default 'unplaced';
+
+alter table drive_applications add column if not exists match_score numeric;
+alter table drive_applications add column if not exists match_explanation text;
+alter table drive_applications add column if not exists matched_model text;
+alter table drive_applications add column if not exists matched_at timestamptz;
 
 -- STORAGE BUCKETS SETUP & PUBLIC RLS POLICIES
 insert into storage.buckets (id, name, public) 

@@ -104,3 +104,37 @@ INSERT INTO offers (
 )
 ON CONFLICT (offer_id) DO UPDATE SET 
   approval_status = 'approved';
+
+
+-- 5. INSERT DUMMY DRIVE APPLICATIONS & MATCH SCORES (Using valid hex UUID prefix 'e')
+INSERT INTO drive_applications (
+  application_id, offer_id, student_id, applied_at, match_score, matched_model, matched_at, final_status, offer_accepted
+) VALUES
+(
+  'e1111111-1111-1111-1111-111111111101', 'd1111111-1111-1111-1111-111111111101',
+  'a1111111-1111-1111-1111-111111111101', now(), 85, 'antigravity-llm-v1', now(), 'applied', false
+),
+(
+  'e1111111-1111-1111-1111-111111111102', 'd1111111-1111-1111-1111-111111111101',
+  'a1111111-1111-1111-1111-111111111102', now(), 92, 'antigravity-llm-v1', now(), 'shortlisted', false
+)
+ON CONFLICT (offer_id, student_id) DO NOTHING;
+
+
+-- 6. INSERT DUMMY DOCUMENT EXTRACTIONS (Using valid hex UUID prefix 'f')
+INSERT INTO document_extractions (
+  extraction_id, entity_type, entity_id, extracted_text, status, extracted_at
+) VALUES
+(
+  'f1111111-1111-1111-1111-111111111101', 'student_resume',
+  'a1111111-1111-1111-1111-111111111101',
+  'Candidate Aarav Sharma, Computer Science, CGPA: 8.75. Experienced in Java, React, Python, Data Structures & SQL.',
+  'done', now()
+),
+(
+  'f1111111-1111-1111-1111-111111111102', 'student_resume',
+  'a1111111-1111-1111-1111-111111111102',
+  'Candidate Ananya Patel, Information Technology, CGPA: 9.10. Skilled in Full Stack Web Development, Node.js, Cloud & Systems Architecture.',
+  'done', now()
+)
+ON CONFLICT (entity_type, entity_id) DO NOTHING;

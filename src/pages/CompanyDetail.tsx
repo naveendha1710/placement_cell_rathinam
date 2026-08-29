@@ -153,15 +153,15 @@ export const CompanyDetail: React.FC = () => {
             {/* Quick Details Grid */}
             <div className="grid grid-cols-2 gap-3 text-xs pt-2 border-t border-zinc-100">
               <div>
-                <span className="text-zinc-400 font-medium block text-[10px] uppercase">Status</span>
+                <span className="text-zinc-400 font-medium block text-[10px] uppercase">Account Status</span>
                 <span className="font-bold text-zinc-800 uppercase">{company.status}</span>
               </div>
               <div>
                 <span className="text-zinc-400 font-medium block text-[10px] uppercase">Employee Count</span>
-                <span className="font-semibold text-zinc-800">{company.employee_count || 'N/A'}</span>
+                <span className="font-semibold text-zinc-800">{company.employee_count ? `${company.employee_count.toLocaleString()} Employees` : 'N/A'}</span>
               </div>
               <div>
-                <span className="text-zinc-400 font-medium block text-[10px] uppercase">Website</span>
+                <span className="text-zinc-400 font-medium block text-[10px] uppercase">Official Website</span>
                 {company.website_url ? (
                   <a
                     href={company.website_url}
@@ -169,7 +169,8 @@ export const CompanyDetail: React.FC = () => {
                     rel="noreferrer"
                     className="text-zinc-900 font-semibold hover:underline flex items-center gap-1 truncate"
                   >
-                    <span>{company.website_url}</span>
+                    <Globe className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
+                    <span className="truncate">{company.website_url}</span>
                     <ExternalLink className="h-3 w-3 shrink-0 text-zinc-400" />
                   </a>
                 ) : (
@@ -177,20 +178,8 @@ export const CompanyDetail: React.FC = () => {
                 )}
               </div>
               <div>
-                <span className="text-zinc-400 font-medium block text-[10px] uppercase">Google Maps</span>
-                {company.map_link ? (
-                  <a
-                    href={company.map_link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-zinc-900 font-semibold hover:underline flex items-center gap-1 truncate"
-                  >
-                    <span>Location Map</span>
-                    <ExternalLink className="h-3 w-3 shrink-0 text-zinc-400" />
-                  </a>
-                ) : (
-                  <span className="text-zinc-400">Not set</span>
-                )}
+                <span className="text-zinc-400 font-medium block text-[10px] uppercase">Industry Tier</span>
+                <span className="font-bold text-amber-600">Tier {company.star_rating} ★</span>
               </div>
             </div>
 
@@ -200,6 +189,44 @@ export const CompanyDetail: React.FC = () => {
                 <p>{company.address}</p>
               </div>
             )}
+
+            {/* Live Viewable Google Maps Embed Card */}
+            <div className="p-4 bg-zinc-900 text-white rounded-xl border border-zinc-900 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-emerald-400" />
+                  <span className="text-xs font-bold text-zinc-100 uppercase tracking-wider">
+                    Company Location Map
+                  </span>
+                </div>
+                {company.map_link ? (
+                  <a
+                    href={company.map_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded transition-colors flex items-center gap-1"
+                  >
+                    <span>Full Map View</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <span className="text-[11px] text-zinc-400">Live Map View</span>
+                )}
+              </div>
+
+              {/* Viewable Live Google Maps Iframe Embed */}
+              <div className="relative h-56 w-full rounded-lg overflow-hidden border border-zinc-800 bg-zinc-950 shadow-inner">
+                <iframe
+                  title={`${company.name} Map Location`}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(company.address || company.name || 'Tamil Nadu')}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+                />
+              </div>
+            </div>
 
             {/* Primary Contact Snapshot Box */}
             <div className="p-3 rounded-lg bg-zinc-900 text-white flex items-center justify-between text-xs">

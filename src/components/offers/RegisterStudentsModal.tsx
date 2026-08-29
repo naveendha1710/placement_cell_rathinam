@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Student, DriveApplication } from '../../types/database';
 import { DataStore } from '../../lib/store';
+import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -21,6 +22,7 @@ export const RegisterStudentsModal: React.FC<RegisterStudentsModalProps> = ({
   eligibleDepartments,
   onSuccess,
 }) => {
+  const { role, departmentScope } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [registeredIds, setRegisteredIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -39,10 +41,14 @@ export const RegisterStudentsModal: React.FC<RegisterStudentsModalProps> = ({
         const registered = new Set(existingApps.map(a => a.student_id));
         setRegisteredIds(registered);
 
-        // Filter eligible students based on department if specified
+        // Filter eligible students based on offer department eligibility & user department scope
         let eligible = allStudents;
         if (eligibleDepartments && eligibleDepartments.length > 0) {
           eligible = eligible.filter(s => eligibleDepartments.includes(s.department));
+        }
+
+        if (role === 'dept_coordinator' && departmentScope) {
+          eligible = eligible.filter(s => s.department.toLowerCase() === departmentScope.toLowerCase());
         }
 
         setStudents(eligible);
@@ -51,7 +57,7 @@ export const RegisterStudentsModal: React.FC<RegisterStudentsModalProps> = ({
       }
     }
     loadData();
-  }, [isOpen, offerId, eligibleDepartments]);
+  }, [isOpen, offerId, eligibleDepartments, role, departmentScope]);
 
   const handleToggleSelect = (sid: string) => {
     setSelectedIds(prev => {

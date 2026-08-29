@@ -136,6 +136,8 @@ export interface DriveApplication {
   applied_at: string;
   match_score?: number | null;
   match_explanation?: string | null;
+  matched_model?: string | null;
+  matched_at?: string | null;
   round_wise_status?: Record<string, string> | null;
   final_status: ApplicationFinalStatus;
   offer_accepted: boolean;
@@ -143,4 +145,13 @@ export interface DriveApplication {
   // Joined metadata
   student?: Student;
   offer?: Offer;
+}
+
+export interface DocumentExtraction {
+  extraction_id: string;
+  entity_type: 'student_resume' | 'job_description';
+  entity_id: string;
+  extracted_text: string;
+  status: 'pending' | 'processing' | 'done' | 'failed';
+  extracted_at: string;
 }

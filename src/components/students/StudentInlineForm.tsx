@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Student, PlacementStatus, ResidencyType, PGStatus } from '../../types/database';
 import { DataStore } from '../../lib/store';
+import { useAuth } from '../../context/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
@@ -28,10 +29,13 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
   onSave,
   student,
 }) => {
+  const { role, departmentScope } = useAuth();
+  const defaultDept = (role === 'dept_coordinator' && departmentScope) ? departmentScope : DEPARTMENTS[0];
+
   const [formData, setFormData] = useState({
     roll_number: '',
     name: '',
-    department: DEPARTMENTS[0],
+    department: defaultDept,
     gender: 'Male',
     residency: 'day_scholar' as ResidencyType,
     sslc_percentage: '',
@@ -63,7 +67,7 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
       setFormData({
         roll_number: student.roll_number || '',
         name: student.name || '',
-        department: student.department || DEPARTMENTS[0],
+        department: (role === 'dept_coordinator' && departmentScope) ? departmentScope : (student.department || DEPARTMENTS[0]),
         gender: student.gender || 'Male',
         residency: (student.residency as ResidencyType) || 'day_scholar',
         sslc_percentage: student.sslc_percentage?.toString() || '',
@@ -194,6 +198,7 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
             <Select
               label="Department *"
               value={formData.department}
+              disabled={role === 'dept_coordinator'}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
               options={DEPARTMENTS.map(d => ({ label: d, value: d }))}
             />

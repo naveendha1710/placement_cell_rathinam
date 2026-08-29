@@ -415,19 +415,28 @@ export const StudentRegisterPage: React.FC = () => {
             {/* Resume Upload & Replacement */}
             <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
               <label className="text-xs font-bold text-zinc-900 block uppercase tracking-wider">
-                Student Resume (Storage Bucket: <span className="font-mono text-zinc-800">student_files</span>)
+                Resume Document
               </label>
 
               {resumeFile ? (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs space-y-1">
-                  <p className="font-bold text-emerald-900 flex items-center gap-1.5">
-                    <FileText className="h-4 w-4 text-emerald-700" />
-                    <span>Existing Resume Uploaded</span>
-                  </p>
-                  <p className="text-emerald-800 font-mono truncate text-[11px]">{resumeFile}</p>
-                  <p className="text-[10px] text-emerald-700 italic">
-                    To update your resume, pick a new file below. The old file link in the database will be replaced.
-                  </p>
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <FileText className="h-4 w-4 text-emerald-700 shrink-0" />
+                    <div className="truncate">
+                      <p className="font-semibold text-emerald-900 truncate text-[11px]">
+                        {resumeFile.split('/').pop()?.split('?')[0] || 'Resume Document'}
+                      </p>
+                      <p className="text-[10px] text-emerald-700">Current active resume file</p>
+                    </div>
+                  </div>
+                  <a
+                    href={resumeFile}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 px-2.5 py-1 text-[11px] font-bold bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                  >
+                    View Resume
+                  </a>
                 </div>
               ) : (
                 <p className="text-xs text-zinc-500">No resume attached to profile yet.</p>
@@ -435,7 +444,7 @@ export const StudentRegisterPage: React.FC = () => {
 
               <div>
                 <label className="text-xs font-semibold text-zinc-800 block mb-1">
-                  {resumeFile ? 'Upload Updated Resume (Replaces Current)' : 'Upload Resume File (PDF / Docx)'}
+                  {resumeFile ? 'Upload New Resume (Replaces Current File)' : 'Upload Resume File (PDF / Docx)'}
                 </label>
                 <div className="flex items-center gap-3">
                   <input
@@ -448,7 +457,7 @@ export const StudentRegisterPage: React.FC = () => {
                 </div>
                 {uploadingResume && (
                   <p className="text-[11px] text-zinc-500 mt-1 font-medium">
-                    Uploading new resume to student_files bucket...
+                    Uploading new resume file...
                   </p>
                 )}
               </div>

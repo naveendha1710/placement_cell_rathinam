@@ -5,11 +5,12 @@ import { Offer } from '../types/database';
 import { useAuth } from '../context/AuthContext';
 import { OfferInlineForm } from '../components/offers/OfferInlineForm';
 import { OfferApprovalModal } from '../components/offers/OfferApprovalModal';
+import { Pagination } from '../components/common/Pagination';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { Select } from '../components/ui/Select';
-import { Briefcase, Plus, Search, Calendar, MapPin, Edit, Trash2, Eye, ShieldCheck } from 'lucide-react';
+import { Briefcase, Plus, Search, Calendar, MapPin, Edit, Trash2, Eye, ShieldCheck, TrendingUp, Award } from 'lucide-react';
 
 export const Offers: React.FC = () => {
   const navigate = useNavigate();
@@ -17,9 +18,14 @@ export const Offers: React.FC = () => {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters & Pagination
   const [search, setSearch] = useState('');
   const [approvalFilter, setApprovalFilter] = useState('all');
+  const [modeFilter, setModeFilter] = useState('all');
+  const [ctcFilter, setCtcFilter] = useState('all');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Inline Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -41,6 +47,10 @@ export const Offers: React.FC = () => {
   useEffect(() => {
     loadOffers();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, approvalFilter, modeFilter, ctcFilter]);
 
   const handleSaveOffer = async (offerData: Partial<Offer> & { company_id: string }) => {
     await DataStore.saveOffer(offerData);
@@ -82,8 +92,20 @@ export const Offers: React.FC = () => {
       companyName.toLowerCase().includes(search.toLowerCase()) ||
       (o.job_location && o.job_location.toLowerCase().includes(search.toLowerCase()));
     const matchesApproval = approvalFilter === 'all' || o.approval_status === approvalFilter;
-    return matchesSearch && matchesApproval;
+    const matchesMode = modeFilter === 'all' || o.drive_mode === modeFilter;
+    const matchesCtc = ctcFilter === 'all' || (o.ctc_lpa !== null && o.ctc_lpa !== undefined && o.ctc_lpa >= parseFloat(ctcFilter));
+
+    return matchesSearch && matchesApproval && matchesMode && matchesCtc;
   });
+
+  const totalPages = Math.ceil(filteredOffers.length / pageSize);
+  const paginatedOffers = filteredOffers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const totalCount = offers.length;
+  const approvedCount = offers.filter(o => o.approval_status === 'approved').length;
+  const ctcValues = offers.map(o => o.ctc_lpa).filter((c): c is number => c !== null && c !== undefined);
+  const highestCtc = ctcValues.length > 0 ? Math.max(...ctcValues) : 0;
+  const avgCtc = ctcValues.length > 0 ? (ctcValues.reduce((a, b) => a + b, 0) / ctcValues.length) : 0;
 
   return (
     <div className="space-y-6">
@@ -115,6 +137,49 @@ export const Offers: React.FC = () => {
         </div>
       </div>
 
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5">
+          <div className="p-2.5 rounded-lg bg-zinc-900 text-white shrink-0">
+            <Briefcase className="h-5 w-5" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Total Drives</span>
+            <span className="text-xl font-bold text-zinc-900 font-mono">{totalCount}</span>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5">
+          <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Approved Drives</span>
+            <span className="text-xl font-bold text-emerald-700 font-mono">{approvedCount}</span>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5">
+          <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+            <TrendingUp className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Highest Package</span>
+            <span className="text-xl font-bold text-emerald-700 font-mono">{highestCtc > 0 ? `${highestCtc.toFixed(1)} LPA` : 'N/A'}</span>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5">
+          <div className="p-2.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
+            <Award className="h-5 w-5 text-purple-600" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Average Package</span>
+            <span className="text-xl font-bold text-purple-700 font-mono">{avgCtc > 0 ? `${avgCtc.toFixed(2)} LPA` : 'N/A'}</span>
+          </div>
+        </Card>
+      </div>
+
       {/* Inline Form Container */}
       {isFormOpen && (
         <OfferInlineForm
@@ -126,7 +191,7 @@ export const Offers: React.FC = () => {
 
       {/* Filters */}
       <Card className="p-4 bg-white border-zinc-200">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
             <input
@@ -134,7 +199,7 @@ export const Offers: React.FC = () => {
               placeholder="Search by company or location..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-sm rounded-md border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
             />
           </div>
 
@@ -142,11 +207,35 @@ export const Offers: React.FC = () => {
             value={approvalFilter}
             onChange={(e) => setApprovalFilter(e.target.value)}
             options={[
-              { label: 'All Offer Statuses', value: 'all' },
+              { label: 'All Approval Statuses', value: 'all' },
               { label: 'Approved Offers', value: 'approved' },
               { label: 'Pending Approval', value: 'pending_approval' },
               { label: 'Draft Mode', value: 'draft' },
               { label: 'Rejected', value: 'rejected' },
+            ]}
+          />
+
+          <Select
+            value={modeFilter}
+            onChange={(e) => setModeFilter(e.target.value)}
+            options={[
+              { label: 'All Drive Modes', value: 'all' },
+              { label: 'On Campus', value: 'on_campus' },
+              { label: 'Off Campus', value: 'off_campus' },
+              { label: 'Virtual Drive', value: 'virtual' },
+              { label: 'Pool Drive', value: 'pool_drive' },
+            ]}
+          />
+
+          <Select
+            value={ctcFilter}
+            onChange={(e) => setCtcFilter(e.target.value)}
+            options={[
+              { label: 'All CTC Packages', value: 'all' },
+              { label: 'CTC >= 10.0 LPA', value: '10' },
+              { label: 'CTC >= 8.0 LPA', value: '8' },
+              { label: 'CTC >= 5.0 LPA', value: '5' },
+              { label: 'CTC >= 3.0 LPA', value: '3' },
             ]}
           />
         </div>
@@ -172,7 +261,7 @@ export const Offers: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 bg-white">
-                {filteredOffers.map((off) => (
+                {paginatedOffers.map((off) => (
                   <tr key={off.offer_id} className="hover:bg-zinc-50 transition-colors">
                     <td className="py-3 px-4">
                       <div>
@@ -266,6 +355,15 @@ export const Offers: React.FC = () => {
             </table>
           </div>
         )}
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredOffers.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+        />
       </Card>
 
       {/* Approval Workflow Modal */}

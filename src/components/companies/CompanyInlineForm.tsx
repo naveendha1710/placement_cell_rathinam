@@ -63,6 +63,10 @@ export const CompanyInlineForm: React.FC<CompanyInlineFormProps> = ({
         employee_count: formData.employee_count ? parseInt(formData.employee_count) : null,
         star_rating: parseInt(formData.star_rating) || 3,
         status: formData.status,
+        approval_status: company?.approval_status || 'approved',
+        approved_by: company?.approved_by || null,
+        approved_at: company?.approved_at || null,
+        rejection_reason: company?.rejection_reason || null,
         contact_person_name: formData.contact_person_name.trim(),
         contact_person_mobile: formData.contact_person_mobile.trim(),
       });
