@@ -47,23 +47,12 @@ export const AppLayout: React.FC = () => {
             <span className="text-sm font-semibold text-zinc-900 truncate">Rathinam Placement Portal</span>
           </div>
 
-          {/* Quick Role Simulator Switcher */}
-          <div className="flex items-center gap-2 sm:gap-3 bg-zinc-100 p-1 sm:p-1.5 rounded-lg border border-zinc-200">
-            <div className="flex items-center gap-1.5 text-xs text-zinc-600 font-semibold px-1 sm:px-2">
-              <Sparkles className="h-3.5 w-3.5 text-zinc-800 hidden sm:block" />
-              <span className="text-[11px] sm:text-xs">Role:</span>
-            </div>
-            <select
-              value={role || ''}
-              onChange={(e) => switchRole(e.target.value as UserRole)}
-              className="text-xs bg-white text-zinc-900 font-semibold px-2 py-1 rounded border border-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-900 cursor-pointer"
-            >
-              {rolesList.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
+          {/* User Role Badge (Static Read-Only) */}
+          <div className="flex items-center gap-2 bg-zinc-100 px-3 py-1.5 rounded-lg border border-zinc-200 text-xs">
+            <Shield className="h-3.5 w-3.5 text-zinc-700" />
+            <span className="font-bold text-zinc-900 uppercase tracking-wider text-[11px]">
+              {role ? role.replace('_', ' ') : 'SUPER ADMIN'}
+            </span>
           </div>
         </header>
 
