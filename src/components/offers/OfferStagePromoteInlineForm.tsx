@@ -248,7 +248,7 @@ export const OfferStagePromoteInlineForm: React.FC<OfferStagePromoteInlineFormPr
         drive_date: driveDate || null,
         drive_mode: driveMode,
         job_location: jobLocation.trim(),
-        job_roles: (targetStage === 'hot' || targetStage === 'drive_completed') ? jobRoles : offer.job_roles,
+        job_roles: (targetStage === 'hot' || targetStage === 'drive_completed' || targetStage === 'drive_closed') ? jobRoles : offer.job_roles,
         stage_history: updatedHistory,
         // Fallbacks
         ctc_lpa: primaryRole.ctc_lpa ?? offer.ctc_lpa,
@@ -272,6 +272,7 @@ export const OfferStagePromoteInlineForm: React.FC<OfferStagePromoteInlineFormPr
     warm: 'Warm Discussion',
     hot: 'Hot Drive Confirmed',
     drive_completed: 'Drive Completed',
+    drive_closed: 'Drive Closed',
   };
 
   const currentRole = jobRoles[activeRoleIndex] || jobRoles[0];

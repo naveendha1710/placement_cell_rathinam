@@ -117,7 +117,7 @@ export const HrContactsManager: React.FC<HrContactsManagerProps> = ({ companyId,
         <form onSubmit={handleSave} className="p-4 rounded-xl border-2 border-zinc-900 bg-zinc-50 space-y-3 animate-in fade-in">
           <div className="flex items-center justify-between border-b border-zinc-200 pb-2">
             <p className="text-xs font-bold text-zinc-900">
-              {selectedContact ? 'Edit HR Contact (Inline Form)' : 'Add HR Contact (Inline Form)'}
+              {selectedContact ? 'Edit HR Contact' : 'Add HR Contact'}
             </p>
             <button
               type="button"

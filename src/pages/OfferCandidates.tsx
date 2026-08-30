@@ -132,34 +132,29 @@ export const OfferCandidates: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <Button size="sm" variant="outline" onClick={() => setIsMatchScoresOpen(true)} className="gap-1.5 bg-white">
-            <Sparkles className="h-4 w-4 text-purple-600" />
-            <span>Match Scores</span>
-          </Button>
-
-          <Button size="sm" variant="outline" onClick={handleCopyShareLink} className="gap-1.5 bg-white">
-            <Share2 className="h-4 w-4 text-zinc-600" />
-            <span>Share Registration Link</span>
-          </Button>
-
-          {canCreateEdit && (
-            <Button size="sm" onClick={() => setIsRegisterOpen(true)} className="gap-1.5 bg-zinc-900 text-white">
-              <UserPlus className="h-4 w-4" />
-              <span>Register Students</span>
+        {offer.offer_status !== 'drive_completed' && (
+          <div className="flex items-center gap-2 shrink-0">
+            <Button size="sm" variant="outline" onClick={() => setIsMatchScoresOpen(true)} className="gap-1.5 bg-white">
+              <Sparkles className="h-4 w-4 text-purple-600" />
+              <span>Match Scores</span>
             </Button>
-          )}
-        </div>
+
+            <Button size="sm" variant="outline" onClick={handleCopyShareLink} className="gap-1.5 bg-white">
+              <Share2 className="h-4 w-4 text-zinc-600" />
+              <span>Share Registration Link</span>
+            </Button>
+
+            {canCreateEdit && (
+              <Button size="sm" onClick={() => setIsRegisterOpen(true)} className="gap-1.5 bg-zinc-900 text-white">
+                <UserPlus className="h-4 w-4" />
+                <span>Register Students</span>
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Post-Drive Completed Selections Table (if drive completed) */}
-      {offer.offer_status === 'drive_completed' && (
-        <DriveCompletedPlacementsTable
-          offer={offer}
-          applications={applications}
-          onRefresh={loadData}
-        />
-      )}
+
 
       {/* Filters Bar */}
       <Card className="p-4 bg-white border border-zinc-200">

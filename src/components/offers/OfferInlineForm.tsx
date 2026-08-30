@@ -119,7 +119,7 @@ export const OfferInlineForm: React.FC<OfferInlineFormProps> = ({
         offer_id: offer?.offer_id,
         company_id: companyId,
         offer_status: 'cold',
-        approval_status: offer?.approval_status || 'approved',
+        approval_status: offer?.approval_status || 'draft',
         contact_person_name: finalContactName,
         remarks: remarks.trim(),
         created_by: offer?.created_by || user?.id || null,

@@ -118,6 +118,8 @@ export const StudentRegisterPage: React.FC = () => {
   const [resumeFile, setResumeFile] = useState('');
   
   const [existingStudent, setExistingStudent] = useState<Student | null>(null);
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const [hasReadJd, setHasReadJd] = useState(false);
   const [searchingRoll, setSearchingRoll] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -250,44 +252,40 @@ export const StudentRegisterPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 py-4">
-      {/* Official College Branding Header */}
-      <div className="p-4 bg-white rounded-xl border border-zinc-200 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-zinc-900 text-white flex items-center justify-center font-bold">
-            <GraduationCap className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-zinc-900">Rathinam College Placement Cell</h2>
-            <p className="text-xs text-zinc-500">Campus Drive Student Registration Portal</p>
-          </div>
-        </div>
-        <Badge variant="approved">OFFICIAL DRIVE</Badge>
-      </div>
-
-      {/* Offer Summary Banner Card */}
-      <Card className="p-6 bg-zinc-900 text-white border-zinc-900 shadow-md">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-400">
-              Campus Recruitment Drive
-            </span>
-            <h1 className="text-2xl font-bold text-zinc-50">{offer.company?.name || 'Company Offer'}</h1>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-300 pt-1">
-              <span className="font-bold text-amber-400">{offer.ctc_lpa ? `${offer.ctc_lpa} LPA Package` : 'CTC TBD'}</span>
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" /> {offer.drive_date || 'Date TBD'}
-              </span>
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" /> {offer.job_location || 'Flexible'}
-              </span>
+    <div className="max-w-3xl mx-auto space-y-6 py-6 px-4">
+      {/* Google/MS Form Top Header Card */}
+      <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden border-t-4 border-t-zinc-900">
+        <div className="p-6 border-b border-zinc-100 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+              <GraduationCap className="h-4 w-4 text-zinc-900" />
+              <span>Rathinam College Placement Cell</span>
             </div>
+            <Badge variant="approved">OFFICIAL RECRUITMENT DRIVE</Badge>
           </div>
-          <Badge variant={offer.approval_status as any}>
-            {offer.approval_status.replace('_', ' ').toUpperCase()}
-          </Badge>
+
+          <h1 className="text-2xl font-extrabold text-zinc-900">
+            {offer.company?.name || 'Company Recruitment Drive'}
+          </h1>
+          <p className="text-xs text-zinc-600">
+            Official Campus Placement Student Registration Portal
+          </p>
+
+          <div className="flex flex-wrap items-center gap-4 text-xs pt-3 text-zinc-700">
+            <span className="font-bold text-zinc-900 bg-zinc-100 px-2.5 py-1 rounded border border-zinc-200">
+              {offer.ctc_lpa ? `${offer.ctc_lpa} LPA Package` : 'CTC Package TBD'}
+            </span>
+            <span className="flex items-center gap-1 font-medium text-zinc-600">
+              <Calendar className="h-3.5 w-3.5 text-zinc-500" />
+              {offer.drive_date || offer.tentative_drive_date || 'Date TBD'}
+            </span>
+            <span className="flex items-center gap-1 font-medium text-zinc-600">
+              <MapPin className="h-3.5 w-3.5 text-zinc-500" />
+              {offer.job_location || 'Flexible Location'}
+            </span>
+          </div>
         </div>
-      </Card>
+      </div>
 
       {/* Submission Success View */}
       {submittedSuccess ? (
@@ -302,28 +300,128 @@ export const StudentRegisterPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-700 max-w-md mx-auto text-left space-y-1">
-            <p><span className="font-semibold">Department:</span> {department}</p>
-            <p><span className="font-semibold">Registered Email:</span> {email}</p>
-            <p><span className="font-semibold">Resume Attachment:</span> {resumeFile ? 'Attached in student_files bucket ✓' : 'None'}</p>
+          <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-700 max-w-md mx-auto text-left space-y-1 font-mono">
+            <p><span className="font-semibold text-zinc-900">Department:</span> {department}</p>
+            <p><span className="font-semibold text-zinc-900">Registered Email:</span> {email}</p>
+            <p><span className="font-semibold text-zinc-900">Resume Attachment:</span> {resumeFile ? 'Attached ✓' : 'None'}</p>
           </div>
 
           {!user && (
-            <p className="text-xs text-zinc-400">You may close this browser tab now.</p>
+            <p className="text-xs text-zinc-400">You may close this browser window now.</p>
           )}
         </Card>
+      ) : currentStep === 1 ? (
+        /* PAGE 1: STEP 1 — Job Description (JD) File Link & Eligibility Requirements */
+        <Card className="p-6 bg-white border-zinc-200 shadow-xs space-y-6 animate-in fade-in">
+          <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-zinc-900 text-white font-bold text-xs">1</span>
+              <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">
+                Step 1: Job Description (JD) Document & Eligibility
+              </h3>
+            </div>
+            {hasReadJd && (
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Reviewed
+              </span>
+            )}
+          </div>
+
+          {/* JD File Attachment Link Button */}
+          <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-3">
+            <label className="text-xs font-bold text-zinc-900 block uppercase tracking-wider">
+              Job Description (JD) File Document
+            </label>
+
+            {offer.jd_files && offer.jd_files.length > 0 ? (
+              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                {offer.jd_files.map((file, idx) => (
+                  <a
+                    key={idx}
+                    href={file}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => setHasReadJd(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg text-xs font-bold transition-all shadow-xs"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span>Open / Download Job Description File ({file.split('/').pop()?.split('_').pop() || 'Document'})</span>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-500">
+                No external JD document attached. Please review the eligible departments and cutoff criteria below.
+              </p>
+            )}
+          </div>
+
+          {/* Eligible Departments & Cutoff Requirements */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1.5">
+              <span className="font-bold text-zinc-900 block uppercase text-[11px] tracking-wider">Eligible Departments:</span>
+              <p className="text-zinc-700 font-medium leading-relaxed">
+                {offer.eligible_departments?.join(', ') || 'All Departments'}
+              </p>
+            </div>
+
+            <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1.5">
+              <span className="font-bold text-zinc-900 block uppercase text-[11px] tracking-wider">Min CGPA & Backlog Cutoff:</span>
+              <p className="text-zinc-700 font-medium leading-relaxed">
+                {offer.eligibility_criteria?.min_cgpa ? `Min UG CGPA: ${offer.eligibility_criteria.min_cgpa}` : 'No Minimum CGPA Cutoff'}
+                {offer.eligibility_criteria?.max_backlogs !== undefined ? ` • Max Backlogs: ${offer.eligibility_criteria.max_backlogs}` : ''}
+              </p>
+            </div>
+          </div>
+
+          {/* Mandatory Checkbox Acknowledgement */}
+          <div className="p-4 bg-zinc-100 border border-zinc-200 rounded-xl">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hasReadJd}
+                onChange={(e) => setHasReadJd(e.target.checked)}
+                className="h-4 w-4 mt-0.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+              />
+              <span className="text-xs font-bold text-zinc-900 leading-snug">
+                I have opened, read, and understood the Job Description (JD) and eligibility requirements for {offer.company?.name || 'this recruitment drive'}.
+              </span>
+            </label>
+          </div>
+
+          {/* Page 1 Action Button */}
+          <div className="flex justify-end pt-2 border-t border-zinc-100">
+            <Button
+              type="button"
+              disabled={!hasReadJd}
+              onClick={() => setCurrentStep(2)}
+              className="w-full sm:w-auto gap-2 bg-zinc-900 hover:bg-zinc-800 text-white disabled:bg-zinc-300 disabled:cursor-not-allowed"
+            >
+              <span>Apply for Drive →</span>
+            </Button>
+          </div>
+        </Card>
       ) : (
-        /* Student Registration Form */
-        <Card className="p-6 bg-white border-zinc-200 shadow-sm space-y-6">
-          <div className="border-b border-zinc-100 pb-3">
-            <h2 className="text-lg font-bold text-zinc-900">Student Registration Form</h2>
-            <p className="text-xs text-zinc-500">
-              Enter your registration details below to apply for {offer.company?.name || 'this recruitment drive'}.
-            </p>
+        /* PAGE 2: STEP 2 — Candidate Information & Roll Number Lookup */
+        <Card className="p-6 bg-white border-zinc-200 shadow-xs space-y-6 animate-in fade-in">
+          <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-zinc-900 text-white font-bold text-xs">2</span>
+              <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">
+                Step 2: Candidate Information & Roll Number Verification
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCurrentStep(1)}
+              className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 underline"
+            >
+              ← Back to JD & Requirements
+            </button>
           </div>
 
           {/* Eligibility Warning Banner if Ineligible */}
-          {!eligibility.isEligible && (
+          {rollNumber.length > 3 && !eligibility.isEligible && (
             <div className="p-4 bg-rose-50 border-2 border-rose-300 rounded-xl text-xs text-rose-900 space-y-2">
               <div className="flex items-center gap-2 font-bold text-sm text-rose-700">
                 <XCircle className="h-5 w-5" />
@@ -341,7 +439,7 @@ export const StudentRegisterPage: React.FC = () => {
           )}
 
           {errorMsg && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs flex items-center gap-2">
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs flex items-center gap-2 font-medium">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -371,56 +469,69 @@ export const StudentRegisterPage: React.FC = () => {
                   size="sm"
                   onClick={() => handleRollLookup(rollNumber)}
                   disabled={searchingRoll}
-                  className="shrink-0 gap-1.5"
+                  className="shrink-0 gap-1.5 bg-white"
                 >
                   <Search className="h-3.5 w-3.5" />
                   <span>{searchingRoll ? 'Searching...' : 'Lookup Profile'}</span>
                 </Button>
               </div>
               {existingStudent ? (
-                <p className="text-[11px] text-emerald-700 font-semibold mt-1 flex items-center gap-1">
+                <p className="text-[11px] text-emerald-700 font-semibold mt-1.5 flex items-center gap-1">
                   <UserCheck className="h-3.5 w-3.5" />
-                  Existing Student Profile matched: {existingStudent.name} ({existingStudent.department})
+                  Existing Candidate Profile matched: {existingStudent.name} ({existingStudent.department})
                 </p>
               ) : rollNumber.length > 2 && !searchingRoll ? (
-                <p className="text-[11px] text-zinc-400 mt-1">
-                  New candidate registration — profile will be created.
+                <p className="text-[11px] text-zinc-500 mt-1">
+                  New candidate registration — profile will be recorded.
                 </p>
               ) : null}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Student Full Name *"
-                placeholder="e.g. Aarav Sharma"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
+              <div>
+                <Input
+                  label="Student Full Name *"
+                  placeholder="e.g. Aarav Sharma"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={Boolean(existingStudent)}
+                  required
+                />
+              </div>
 
-              <Select
-                label="Department *"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                options={DEPARTMENTS.map(d => ({ label: d, value: d }))}
-              />
+              <div>
+                <Select
+                  label="Department *"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  disabled={Boolean(existingStudent)}
+                  options={DEPARTMENTS.map(d => ({ label: d, value: d }))}
+                />
+              </div>
 
-              <Input
-                label="Email Address *"
-                type="email"
-                placeholder="aarav@rathinam.edu.in"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <div>
+                <Input
+                  label="Email Address *"
+                  type="email"
+                  placeholder="aarav@rathinam.edu.in"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={Boolean(existingStudent)}
+                  required
+                />
+              </div>
 
-              <Input
-                label="Mobile Number"
-                placeholder="+91 9876543210"
-                value={mobileNumber}
-                onChange={(e) => setMobileNumber(e.target.value)}
-              />
+              <div>
+                <Input
+                  label="Mobile Number"
+                  placeholder="+91 9876543210"
+                  value={mobileNumber}
+                  onChange={(e) => setMobileNumber(e.target.value)}
+                  disabled={Boolean(existingStudent)}
+                />
+              </div>
             </div>
+
 
             {/* Resume Upload & Replacement */}
             <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
@@ -436,7 +547,7 @@ export const StudentRegisterPage: React.FC = () => {
                       <p className="font-semibold text-emerald-900 truncate text-[11px]">
                         {resumeFile.split('/').pop()?.split('?')[0] || 'Resume Document'}
                       </p>
-                      <p className="text-[10px] text-emerald-700">Current active resume file</p>
+                      <p className="text-[10px] text-emerald-700">Active candidate resume file</p>
                     </div>
                   </div>
                   <a
@@ -449,7 +560,7 @@ export const StudentRegisterPage: React.FC = () => {
                   </a>
                 </div>
               ) : (
-                <p className="text-xs text-zinc-500">No resume attached to profile yet.</p>
+                <p className="text-xs text-zinc-500">No resume attached to candidate profile yet.</p>
               )}
 
               <div>
@@ -467,20 +578,28 @@ export const StudentRegisterPage: React.FC = () => {
                 </div>
                 {uploadingResume && (
                   <p className="text-[11px] text-zinc-500 mt-1 font-medium">
-                    Uploading new resume file...
+                    Uploading resume file...
                   </p>
                 )}
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100">
+            <div className="flex justify-between items-center pt-4 border-t border-zinc-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCurrentStep(1)}
+              >
+                ← Back to JD
+              </Button>
+
               <Button
                 type="submit"
                 disabled={submitting || uploadingResume || !eligibility.isEligible}
-                className="w-full sm:w-auto gap-2 bg-zinc-900 hover:bg-zinc-800 text-white disabled:bg-zinc-300 disabled:cursor-not-allowed"
+                className="gap-2 bg-zinc-900 hover:bg-zinc-800 text-white disabled:bg-zinc-300 disabled:cursor-not-allowed"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                <span>{submitting ? 'Registering Candidate...' : !eligibility.isEligible ? 'Ineligible for this Drive' : 'Submit Registration for Drive'}</span>
+                <span>{submitting ? 'Submitting Application...' : !eligibility.isEligible ? 'Ineligible for Drive' : 'Submit Drive Application'}</span>
               </Button>
             </div>
           </form>

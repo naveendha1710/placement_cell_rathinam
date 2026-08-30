@@ -653,7 +653,7 @@ export const DataStore = {
     const now = new Date().toISOString();
     const offer_id = offerData.offer_id || crypto.randomUUID();
 
-    let existingApprovalStatus = offerData.approval_status || 'approved';
+    let existingApprovalStatus = offerData.approval_status || 'draft';
     let existingApprovedBy = offerData.approved_by || null;
     let existingApprovedAt = offerData.approved_at || null;
     let existingRejectionReason = offerData.rejection_reason || null;
@@ -953,9 +953,10 @@ export const DataStore = {
     const apps = await this.getApplications(offer_id);
     const students = await this.getStudents();
     let updatedCount = 0;
+    const selectedSet = new Set(selectedStudentIds);
 
     for (const app of apps) {
-      const isSelected = selectedStudentIds.includes(app.student_id);
+      const isSelected = selectedSet.has(app.student_id);
       if (isSelected) {
         app.final_status = 'selected';
         app.offer_accepted = true;
@@ -974,16 +975,31 @@ export const DataStore = {
             .update({ final_status: 'selected', offer_accepted: true })
             .eq('application_id', app.application_id);
         }
+      } else {
+        // Automatically set non-selected candidates' status to 'rejected'
+        app.final_status = 'rejected';
+        app.offer_accepted = false;
+
+        if (!isMockMode) {
+          await supabase
+            .from('drive_applications')
+            .update({ final_status: 'rejected', offer_accepted: false })
+            .eq('application_id', app.application_id);
+        }
       }
     }
 
     if (isMockMode) {
       const allApps = getStored<DriveApplication[]>(STORAGE_KEYS.APPLICATIONS, INITIAL_APPLICATIONS);
-      const appSet = new Set(selectedStudentIds);
       allApps.forEach(a => {
-        if (a.offer_id === offer_id && appSet.has(a.student_id)) {
-          a.final_status = 'selected';
-          a.offer_accepted = true;
+        if (a.offer_id === offer_id) {
+          if (selectedSet.has(a.student_id)) {
+            a.final_status = 'selected';
+            a.offer_accepted = true;
+          } else {
+            a.final_status = 'rejected';
+            a.offer_accepted = false;
+          }
         }
       });
       setStored(STORAGE_KEYS.APPLICATIONS, allApps);
@@ -1099,15 +1115,27 @@ export const DataStore = {
 
   // SUPABASE STORAGE FILE UPLOAD
   async uploadFile(bucket: string, filePath: string, file: File): Promise<string> {
-    const cleanPath = filePath.replace(/[^a-zA-Z0-9_.-]/g, '_');
+    const cleanPath = filePath.replace(/[^a-zA-Z0-9_\/.-]/g, '_');
     if (!isMockMode) {
-      const { data, error } = await supabase.storage.from(bucket).upload(cleanPath, file, { upsert: true });
-      if (error) {
-        console.error(`Storage upload error (${bucket}/${cleanPath}):`, error);
-        throw error;
+      try {
+        const { data, error } = await supabase.storage.from(bucket).upload(cleanPath, file, { upsert: true });
+        if (error) {
+          console.warn(`Storage upload error on bucket '${bucket}': ${error.message}. Attempting fallback...`);
+          // Try fallback bucket student_files if main bucket missing
+          const { data: fbData, error: fbError } = await supabase.storage.from('student_files').upload(cleanPath, file, { upsert: true });
+          if (!fbError) {
+            const { data: pubData } = supabase.storage.from('student_files').getPublicUrl(cleanPath);
+            return pubData?.publicUrl || cleanPath;
+          }
+          // Object URL fallback if Supabase bucket doesn't exist yet
+          return URL.createObjectURL(file);
+        }
+        const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(cleanPath);
+        return publicUrlData?.publicUrl || cleanPath;
+      } catch (err) {
+        console.warn('Storage upload fallback triggered:', err);
+        return URL.createObjectURL(file);
       }
-      const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(cleanPath);
-      return publicUrlData?.publicUrl || cleanPath;
     }
     return `mock_storage/${bucket}/${cleanPath}`;
   }

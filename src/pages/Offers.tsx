@@ -213,6 +213,7 @@ export const Offers: React.FC = () => {
                   { label: 'Warm Discussions', value: 'warm' },
                   { label: 'Hot Confirmed Drives', value: 'hot' },
                   { label: 'Completed Drives', value: 'drive_completed' },
+                  { label: 'Closed & Archived Drives', value: 'drive_closed' },
                 ]}
               />
 
@@ -276,12 +277,16 @@ export const Offers: React.FC = () => {
                   <tbody className="divide-y divide-zinc-100 bg-white">
                     {paginatedOffers.map((off) => {
                       const stage = off.offer_status || 'cold';
+                      // Monochrome / High-contrast Mono Badges for Pipeline Stages
                       const stageBadge = 
-                        stage === 'drive_completed' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                        stage === 'hot' ? 'bg-amber-100 text-amber-800 border-amber-300' :
-                        stage === 'warm' ? 'bg-orange-100 text-orange-800 border-orange-300' :
-                        'bg-blue-100 text-blue-800 border-blue-300';
+                        stage === 'drive_closed' ? 'bg-zinc-950 text-white border-zinc-950 font-bold' :
+                        stage === 'drive_completed' ? 'bg-zinc-900 text-white border-zinc-900' :
+                        stage === 'hot' ? 'bg-zinc-800 text-zinc-100 border-zinc-700' :
+                        stage === 'warm' ? 'bg-zinc-200 text-zinc-800 border-zinc-300 font-semibold' :
+                        'bg-zinc-100 text-zinc-700 border-zinc-300';
+
                       const stageLabel = 
+                        stage === 'drive_closed' ? 'Drive Closed' :
                         stage === 'drive_completed' ? 'Drive Completed' :
                         stage === 'hot' ? 'Hot Drive' :
                         stage === 'warm' ? 'Warm Lead' : 'Cold Lead';
@@ -290,35 +295,25 @@ export const Offers: React.FC = () => {
 
                       return (
                         <tr key={off.offer_id} className="hover:bg-zinc-50 transition-colors">
-                          <td className="py-3 px-4">
-                            <div>
-                              <button
-                                onClick={() => navigate(`/offers/${off.offer_id}`)}
-                                className="font-bold text-zinc-900 hover:underline text-left text-sm"
-                              >
-                                {off.company?.name || 'Company Offer'}
-                              </button>
-                              <p className="text-[11px] text-zinc-500">
-                                {off.eligible_departments?.join(', ') || 'All Depts'}
-                              </p>
-                            </div>
+                          <td className="py-3 px-4 font-bold text-zinc-900 text-sm">
+                            <button
+                              onClick={() => navigate(`/offers/${off.offer_id}`)}
+                              className="font-bold text-zinc-900 hover:underline text-left"
+                            >
+                              {off.company?.name || 'Company Offer'}
+                            </button>
                           </td>
                           <td className="py-3 px-4">
-                            <span className={`inline-block px-2.5 py-0.5 text-[11px] font-extrabold rounded-md border ${stageBadge}`}>
+                            <span className={`inline-block px-2.5 py-0.5 text-[11px] font-bold rounded-md border ${stageBadge}`}>
                               {stageLabel}
                             </span>
                           </td>
-                          <td className="py-3 px-4">
-                            <div className="space-y-0.5">
-                              <span className="font-mono font-bold text-zinc-900 block">
-                                {off.ctc_lpa ? `${off.ctc_lpa} LPA` : 'TBD'}
-                              </span>
-                              {rolesCount > 0 && (
-                                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200">
-                                  {rolesCount} {rolesCount === 1 ? 'Role' : 'Roles'} Configured
-                                </span>
-                              )}
-                            </div>
+                          <td className="py-3 px-4 font-mono font-bold text-zinc-900">
+                            {rolesCount > 1 ? (
+                              <span>{rolesCount} Roles ({off.ctc_lpa ? `${off.ctc_lpa} LPA` : 'TBD'})</span>
+                            ) : (
+                              <span>{off.ctc_lpa ? `${off.ctc_lpa} LPA` : 'TBD'}</span>
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <div className="space-y-0.5">
@@ -332,15 +327,8 @@ export const Offers: React.FC = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="py-3 px-4">
-                            {off.creator_profile ? (
-                              <div className="text-xs">
-                                <span className="font-semibold text-zinc-900 block">{off.creator_profile.name}</span>
-                                <span className="text-[10px] text-zinc-500 uppercase font-medium">{off.creator_profile.role.replace('_', ' ')}</span>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-zinc-400 italic">System / Admin</span>
-                            )}
+                          <td className="py-3 px-4 font-semibold text-zinc-900">
+                            {off.creator_profile?.name || 'Admin User'}
                           </td>
                           <td className="py-3 px-4">
                             <button

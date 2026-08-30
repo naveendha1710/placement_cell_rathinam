@@ -176,21 +176,7 @@ export const MatchScoresModal: React.FC<MatchScoresModalProps> = ({
         // Final score (clamped between 15% and 100%)
         const finalScore = Math.min(100, Math.max(15, skillScore + deptScore + cgpaScore + backlogScore));
 
-        // Console log debug output for developer inspection
-        console.group(`🔍 AI Match Evaluation: ${st?.name || 'Candidate'} (${st?.roll_number || 'N/A'})`);
-        console.log('📌 Candidate Department:', st?.department);
-        console.log('📄 Offer JD Text:', jdText.substring(0, 150) + '...');
-        console.log('📝 Candidate Resume Text:', resumeText.substring(0, 150) + '...');
-        console.log('🏷️ JD Keywords:', Array.from(jdWords));
-        console.log('🎯 Matched Keywords:', Array.from(matchedTerms));
-        console.log('📊 Score Breakdown:', {
-          skillScore: `${skillScore} / 50 pts (Matched ${matchedTerms.size} terms)`,
-          deptScore: `${deptScore} / 25 pts`,
-          cgpaScore: `${cgpaScore} / 15 pts`,
-          backlogScore: `${backlogScore} / 10 pts`,
-          finalScore: `${finalScore}%`
-        });
-        console.groupEnd();
+
 
         await DataStore.updateApplicationMatchScore(
           app.application_id,

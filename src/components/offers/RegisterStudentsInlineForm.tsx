@@ -96,7 +96,7 @@ export const RegisterStudentsInlineForm: React.FC<RegisterStudentsInlineFormProp
       <div className="flex items-center justify-between border-b border-zinc-200 pb-3">
         <div>
           <h3 className="text-base font-bold text-zinc-900">
-            Register Eligible Candidates (Inline Form)
+            Register Eligible Candidates
           </h3>
           <p className="text-xs text-zinc-500">
             Filtered to eligible departments: {eligibleDepartments?.join(', ') || 'All'}

@@ -94,7 +94,7 @@ export interface CompanyHrContact {
 }
 
 export type DriveMode = 'on_campus' | 'virtual' | 'pooled';
-export type OfferStatus = 'cold' | 'warm' | 'hot' | 'drive_completed';
+export type OfferStatus = 'cold' | 'warm' | 'hot' | 'drive_completed' | 'drive_closed';
 
 export interface EligibilityCriteria {
   min_cgpa?: number;

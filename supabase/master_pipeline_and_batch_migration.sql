@@ -35,7 +35,7 @@ ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
 CREATE TABLE IF NOT EXISTS public.offer_stage_history (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   offer_id uuid NOT NULL REFERENCES public.offers(offer_id) ON DELETE CASCADE,
-  stage text NOT NULL CHECK (stage IN ('cold', 'warm', 'hot', 'drive_completed')),
+  stage text NOT NULL CHECK (stage IN ('cold', 'warm', 'hot', 'drive_completed', 'drive_closed')),
   timestamp timestamptz NOT NULL DEFAULT now(),
   updated_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   notes text,

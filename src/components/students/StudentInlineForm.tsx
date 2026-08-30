@@ -180,7 +180,7 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
       <div className="flex items-center justify-between border-b border-zinc-200 pb-3 mb-4">
         <div>
           <h3 className="text-base font-bold text-zinc-900">
-            {student ? 'Edit Student Profile (Inline Form)' : 'Add New Student Profile (Inline Form)'}
+            {student ? 'Edit Student Profile' : 'Add New Student Profile'}
           </h3>
           <p className="text-xs text-zinc-500">Fill in student academic & contact credentials below</p>
         </div>

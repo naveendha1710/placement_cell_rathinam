@@ -83,7 +83,7 @@ export const UserInlineForm: React.FC<UserInlineFormProps> = ({
       <div className="flex items-center justify-between border-b border-zinc-200 pb-3 mb-4">
         <div>
           <h3 className="text-base font-bold text-zinc-900">
-            {userProfile ? 'Edit Staff Credentials (Inline Form)' : 'Add New Staff User (Inline Form)'}
+            {userProfile ? 'Edit Staff Credentials' : 'Add New Staff User'}
           </h3>
           <p className="text-xs text-zinc-500">Configure role permissions, credentials, and department access boundaries</p>
         </div>

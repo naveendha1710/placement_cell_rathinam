@@ -13,7 +13,7 @@ import { Card } from '../components/ui/Card';
 import { 
   ArrowLeft, Calendar, MapPin, ShieldCheck, FileText, 
   Trash2, User, Layers, UserCheck, Clock, ArrowRight, History, Building2, Download,
-  Users, UserPlus, MessageSquare, Phone, Mail
+  Users, UserPlus, MessageSquare, Phone, Mail, Award
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -30,9 +30,9 @@ export const OfferDetail: React.FC = () => {
   const [isApprovalOpen, setIsApprovalOpen] = useState(false);
   const [isMatchScoresOpen, setIsMatchScoresOpen] = useState(false);
 
-  // Stage Promote Modal State
   const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
   const [targetPromoteStage, setTargetPromoteStage] = useState<OfferStatus>('warm');
+  const [isPlacementsModalOpen, setIsPlacementsModalOpen] = useState(false);
 
   const loadData = async () => {
     if (!id) return;
@@ -75,16 +75,18 @@ export const OfferDetail: React.FC = () => {
   }
 
   const stageBadgeStyle =
-    offer.offer_status === 'drive_completed' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-    offer.offer_status === 'hot' ? 'bg-amber-50 text-amber-800 border-amber-200' :
-    offer.offer_status === 'warm' ? 'bg-orange-50 text-orange-800 border-orange-200' :
-    'bg-blue-50 text-blue-800 border-blue-200';
+    offer.offer_status === 'drive_closed' ? 'bg-zinc-950 text-white border-zinc-950 font-bold' :
+    offer.offer_status === 'drive_completed' ? 'bg-zinc-900 text-white border-zinc-900' :
+    offer.offer_status === 'hot' ? 'bg-zinc-800 text-zinc-100 border-zinc-700' :
+    offer.offer_status === 'warm' ? 'bg-zinc-200 text-zinc-800 border-zinc-300 font-semibold' :
+    'bg-zinc-100 text-zinc-700 border-zinc-300';
 
   const stageLabels: Record<OfferStatus, string> = {
     cold: 'COLD LEAD',
     warm: 'WARM DISCUSSION',
     hot: 'HOT CONFIRMED DRIVE',
     drive_completed: 'DRIVE COMPLETED',
+    drive_closed: 'DRIVE CLOSED & ARCHIVED',
   };
 
   return (
@@ -101,11 +103,14 @@ export const OfferDetail: React.FC = () => {
             {stageLabels[offer.offer_status || 'cold']}
           </span>
 
-          {canCreateEdit && offer.offer_status !== 'drive_completed' && (
+          {canCreateEdit && offer.offer_status !== 'drive_closed' && (
             <Button
               size="sm"
               onClick={() => {
-                const next = offer.offer_status === 'cold' ? 'warm' : offer.offer_status === 'warm' ? 'hot' : 'drive_completed';
+                const next: OfferStatus = 
+                  offer.offer_status === 'cold' ? 'warm' : 
+                  offer.offer_status === 'warm' ? 'hot' : 
+                  offer.offer_status === 'hot' ? 'drive_completed' : 'drive_closed';
                 setTargetPromoteStage(next);
                 setIsPromoteModalOpen(true);
               }}
@@ -114,7 +119,7 @@ export const OfferDetail: React.FC = () => {
               <span>
                 {offer.offer_status === 'cold' ? 'Promote to Warm Stage' :
                  offer.offer_status === 'warm' ? 'Promote to Hot Stage' :
-                 'Mark Drive Completed'}
+                 offer.offer_status === 'hot' ? 'Mark Drive Completed' : 'Close & Archive Drive'}
               </span>
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -137,7 +142,23 @@ export const OfferDetail: React.FC = () => {
           onClose={() => setIsPromoteModalOpen(false)}
           offer={offer}
           targetStage={targetPromoteStage}
-          onSuccess={loadData}
+          onSuccess={async () => {
+            await loadData();
+            if (targetPromoteStage === 'drive_completed') {
+              setIsPlacementsModalOpen(true);
+            }
+          }}
+        />
+      )}
+
+      {/* Post-Drive Selection & Placed Candidates Modal Popup */}
+      {isPlacementsModalOpen && offer && (
+        <DriveCompletedPlacementsTable
+          offer={offer}
+          applications={applications}
+          onRefresh={loadData}
+          isOpen={isPlacementsModalOpen}
+          onClose={() => setIsPlacementsModalOpen(false)}
         />
       )}
 
@@ -378,14 +399,7 @@ export const OfferDetail: React.FC = () => {
         />
       )}
 
-      {/* Post-Drive Completed Selection Table */}
-      {offer.offer_status === 'drive_completed' && (
-        <DriveCompletedPlacementsTable
-          offer={offer}
-          applications={applications}
-          onRefresh={loadData}
-        />
-      )}
+
 
       {/* Registered Candidates Action Card */}
       <Card className="p-6 bg-white border border-zinc-200 shadow-xs">
@@ -408,21 +422,34 @@ export const OfferDetail: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            {canCreateEdit && (
+            {canCreateEdit && (offer.offer_status === 'drive_completed' || offer.offer_status === 'drive_closed') && (
+              <Button
+                size="sm"
+                onClick={() => setIsPlacementsModalOpen(true)}
+                className="gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-xs"
+              >
+                <Award className="h-4 w-4" />
+                <span>{offer.offer_status === 'drive_closed' ? 'View Placed Candidates' : 'Manage Placed Candidates'}</span>
+              </Button>
+            )}
+
+            {canCreateEdit && offer.offer_status !== 'drive_completed' && offer.offer_status !== 'drive_closed' && (
               <Button size="sm" variant="outline" onClick={() => setIsRegisterOpen(true)} className="gap-1.5 bg-white">
                 <UserPlus className="h-4 w-4" />
                 <span>Register Students</span>
               </Button>
             )}
 
-            <Button
-              size="sm"
-              onClick={() => navigate(`/offers/${offer.offer_id}/candidates`)}
-              className="gap-1.5 bg-zinc-900 text-white shadow-xs"
-            >
-              <span>View Registration Matrix</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
+            {offer.offer_status !== 'drive_completed' && offer.offer_status !== 'drive_closed' && (
+              <Button
+                size="sm"
+                onClick={() => navigate(`/offers/${offer.offer_id}/candidates`)}
+                className="gap-1.5 bg-zinc-900 text-white shadow-xs"
+              >
+                <span>View Registration Matrix</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </Card>

@@ -5,31 +5,48 @@ import { useAuth } from '../../context/AuthContext';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { CheckCircle2, UserCheck, Award, AlertCircle } from 'lucide-react';
+import { CheckCircle2, UserCheck, Award, AlertCircle, Search, X } from 'lucide-react';
 
 interface DriveCompletedPlacementsTableProps {
   offer: Offer;
   applications: DriveApplication[];
   onRefresh: () => Promise<void>;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export const DriveCompletedPlacementsTable: React.FC<DriveCompletedPlacementsTableProps> = ({
   offer,
   applications,
   onRefresh,
+  isOpen = true,
+  onClose,
 }) => {
   const { canCreateEdit } = useAuth();
+  const isReadOnly = offer.offer_status === 'drive_closed' || !canCreateEdit;
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Initialize selected check boxes with already placed/selected students
+  // Initialize selected checkboxes with already placed/selected students
   useEffect(() => {
     const preSelected = applications
       .filter(a => a.final_status === 'selected' || a.offer_accepted)
       .map(a => a.student_id);
     setSelectedStudentIds(preSelected);
   }, [applications]);
+
+  const filteredApplications = applications.filter(app => {
+    const st = app.student;
+    if (!st) return true;
+    const query = search.toLowerCase();
+    return (
+      st.name.toLowerCase().includes(query) ||
+      st.roll_number.toLowerCase().includes(query) ||
+      st.department.toLowerCase().includes(query)
+    );
+  });
 
   const toggleStudent = (studentId: string) => {
     setSelectedStudentIds(prev =>
@@ -40,10 +57,10 @@ export const DriveCompletedPlacementsTable: React.FC<DriveCompletedPlacementsTab
   };
 
   const toggleSelectAll = () => {
-    if (selectedStudentIds.length === applications.length) {
+    if (selectedStudentIds.length === filteredApplications.length) {
       setSelectedStudentIds([]);
     } else {
-      setSelectedStudentIds(applications.map(a => a.student_id));
+      setSelectedStudentIds(filteredApplications.map(a => a.student_id));
     }
   };
 
@@ -58,8 +75,13 @@ export const DriveCompletedPlacementsTable: React.FC<DriveCompletedPlacementsTab
     setSuccessMsg('');
     try {
       const count = await DataStore.markCandidatesAsPlaced(offer.offer_id, selectedStudentIds);
-      setSuccessMsg(`Successfully marked ${count} candidate(s) as Placed! Student profile status updated automatically.`);
+      setSuccessMsg(`Successfully recorded ${count} candidate(s) as Placed! Student profile status updated automatically.`);
       await onRefresh();
+      if (onClose) {
+        setTimeout(() => {
+          onClose();
+        }, 800);
+      }
     } catch (err) {
       console.error('Error updating placed candidate status:', err);
       alert('Failed to save placed candidate status.');
@@ -68,9 +90,9 @@ export const DriveCompletedPlacementsTable: React.FC<DriveCompletedPlacementsTab
     }
   };
 
-  return (
-    <Card className="p-6 bg-white border-2 border-emerald-500/30 space-y-4 shadow-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-4">
+  const content = (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between border-b border-zinc-100 pb-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
             <Award className="h-6 w-6" />
@@ -85,17 +107,48 @@ export const DriveCompletedPlacementsTable: React.FC<DriveCompletedPlacementsTab
             </p>
           </div>
         </div>
-
-        {canCreateEdit && (
-          <Button
-            onClick={handleSavePlacements}
-            disabled={saving}
-            className="bg-emerald-700 hover:bg-emerald-800 text-white gap-2 shrink-0 font-semibold"
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-1 rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
           >
-            <UserCheck className="h-4 w-4" />
-            <span>{saving ? 'Updating Status...' : `Confirm Placed Candidates (${selectedStudentIds.length})`}</span>
-          </Button>
+            <X className="h-5 w-5" />
+          </button>
         )}
+      </div>
+
+      {/* Search Bar & Select All Controller */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-zinc-50 p-3 rounded-xl border border-zinc-200">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+          <input
+            type="text"
+            placeholder="Search candidate by roll, name, department..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          />
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          <span className="text-xs font-semibold text-zinc-700">
+            Selected: <span className="font-bold text-emerald-700">{selectedStudentIds.length} candidate(s)</span>
+          </span>
+          {!isReadOnly && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={toggleSelectAll}
+              disabled={isReadOnly || filteredApplications.length === 0}
+              className="text-xs bg-white shrink-0"
+            >
+              {selectedStudentIds.length === filteredApplications.length && filteredApplications.length > 0
+                ? 'Deselect All'
+                : 'Select All Filtered'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Success Notification Banner */}
@@ -107,21 +160,21 @@ export const DriveCompletedPlacementsTable: React.FC<DriveCompletedPlacementsTab
       )}
 
       {/* Candidates Selection Table */}
-      {applications.length === 0 ? (
-        <div className="py-8 text-center text-xs text-zinc-500">
-          No candidates registered for this drive yet. Register candidates before marking selection results.
+      {filteredApplications.length === 0 ? (
+        <div className="py-8 text-center text-xs text-zinc-500 bg-zinc-50 rounded-xl border border-dashed border-zinc-200">
+          No candidates found matching criteria.
         </div>
       ) : (
-        <div className="overflow-x-auto border border-zinc-200 rounded-xl">
+        <div className="overflow-x-auto border border-zinc-200 rounded-xl max-h-[50vh] overflow-y-auto">
           <table className="w-full text-left text-xs text-zinc-700">
-            <thead className="bg-zinc-100 border-b border-zinc-200 uppercase text-[11px] font-semibold text-zinc-600 tracking-wider">
+            <thead className="bg-zinc-100 border-b border-zinc-200 sticky top-0 uppercase text-[11px] font-semibold text-zinc-600 tracking-wider">
               <tr>
                 <th className="py-3 px-4 w-10 text-center">
                   <input
                     type="checkbox"
-                    checked={applications.length > 0 && selectedStudentIds.length === applications.length}
+                    checked={filteredApplications.length > 0 && selectedStudentIds.length === filteredApplications.length}
                     onChange={toggleSelectAll}
-                    disabled={!canCreateEdit || saving}
+                    disabled={isReadOnly || saving}
                     className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                   />
                 </th>
@@ -134,15 +187,15 @@ export const DriveCompletedPlacementsTable: React.FC<DriveCompletedPlacementsTab
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 bg-white">
-              {applications.map((app) => {
+              {filteredApplications.map((app) => {
                 const st = app.student;
                 const isChecked = selectedStudentIds.includes(app.student_id);
 
                 return (
                   <tr
                     key={app.application_id}
-                    onClick={() => canCreateEdit && toggleStudent(app.student_id)}
-                    className={`hover:bg-zinc-50 transition-colors cursor-pointer ${
+                    onClick={() => !isReadOnly && toggleStudent(app.student_id)}
+                    className={`hover:bg-zinc-50 transition-colors ${!isReadOnly ? 'cursor-pointer' : ''} ${
                       isChecked ? 'bg-emerald-50/50' : ''
                     }`}
                   >
@@ -150,8 +203,8 @@ export const DriveCompletedPlacementsTable: React.FC<DriveCompletedPlacementsTab
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        onChange={() => toggleStudent(app.student_id)}
-                        disabled={!canCreateEdit || saving}
+                        onChange={() => !isReadOnly && toggleStudent(app.student_id)}
+                        disabled={isReadOnly || saving}
                         className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                       />
                     </td>
@@ -192,6 +245,42 @@ export const DriveCompletedPlacementsTable: React.FC<DriveCompletedPlacementsTab
           </table>
         </div>
       )}
+
+      <div className="flex justify-end gap-3 pt-3 border-t border-zinc-100">
+        {onClose && (
+          <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+            {isReadOnly ? 'Close' : 'Cancel'}
+          </Button>
+        )}
+        {!isReadOnly && (
+          <Button
+            onClick={handleSavePlacements}
+            disabled={saving}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white gap-2 font-semibold"
+          >
+            <UserCheck className="h-4 w-4" />
+            <span>{saving ? 'Updating Status...' : `Confirm Placed Candidates (${selectedStudentIds.length})`}</span>
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
+  // If called as a modal popup with onClose
+  if (onClose) {
+    if (!isOpen) return null;
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+        <div className="bg-white rounded-2xl border border-zinc-200 max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl space-y-4">
+          {content}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Card className="p-6 bg-white border-2 border-emerald-500/30 shadow-sm">
+      {content}
     </Card>
   );
 };
