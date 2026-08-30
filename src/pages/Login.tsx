@@ -70,28 +70,7 @@ export const Login: React.FC = () => {
             </Button>
           </form>
 
-          <div className="pt-4 border-t border-zinc-200">
-            <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-medium mb-2">
-              <ShieldCheck className="h-4 w-4 text-zinc-700" />
-              <span>Quick Login as Demo Account:</span>
-            </div>
-            <div className="space-y-1.5">
-              {demoAccounts.map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => {
-                    setEmail(acc.email);
-                    login(acc.email).then(() => navigate('/dashboard'));
-                  }}
-                  className="w-full text-left px-3 py-1.5 rounded text-xs bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 flex justify-between items-center transition-colors"
-                >
-                  <span className="font-medium text-zinc-900">{acc.label}</span>
-                  <span className="text-[11px] text-zinc-500">{acc.email}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+
         </CardContent>
       </Card>
     </div>

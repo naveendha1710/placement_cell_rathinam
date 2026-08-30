@@ -72,7 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   return (
     <aside 
       className={cn(
-        "border-r border-zinc-200 bg-white min-h-screen flex flex-col justify-between transition-all duration-300 relative z-20 shrink-0",
+        "border-r border-zinc-200 bg-white h-full flex flex-col justify-between transition-all duration-300 relative z-20 shrink-0 overflow-y-auto",
         isCollapsed ? "w-16" : "w-64"
       )}
     >
