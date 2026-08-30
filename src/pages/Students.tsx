@@ -82,10 +82,10 @@ export const Students: React.FC = () => {
   const totalPages = Math.ceil(filteredStudents.length / pageSize);
   const paginatedStudents = filteredStudents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const totalCount = students.length;
-  const placedCount = students.filter(s => s.placement_status === 'placed').length;
-  const unplacedCount = students.filter(s => s.placement_status === 'unplaced').length;
-  const optedOutCount = students.filter(s => s.placement_status === 'opted_out').length;
+  const totalCount = filteredStudents.length;
+  const placedCount = filteredStudents.filter(s => s.placement_status === 'placed').length;
+  const unplacedCount = filteredStudents.filter(s => s.placement_status === 'yet_to_be_placed').length;
+  const optedOutCount = filteredStudents.filter(s => s.placement_status === 'opted_out').length;
 
   return (
     <div className="space-y-6">
@@ -145,7 +145,7 @@ export const Students: React.FC = () => {
             <Clock className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Unplaced Candidates</span>
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Yet to be Placed</span>
             <span className="text-xl font-bold text-amber-700 font-mono">{unplacedCount}</span>
           </div>
         </Card>
@@ -190,7 +190,7 @@ export const Students: React.FC = () => {
                   onChange={(e) => setDeptFilter(e.target.value)}
                   options={[
                     { label: 'All Departments', value: 'all' },
-                    { label: 'Computer Science', value: 'Computer  Science' },
+                    { label: 'Computer Science', value: 'Computer Science' },
                     { label: 'Information Technology', value: 'Information Technology' },
                     { label: 'Electronics and Communication', value: 'Electronics & Communication' },
                     { label: 'Mechanical Engineering', value: 'Mechanical Engineering' },
@@ -206,7 +206,7 @@ export const Students: React.FC = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 options={[
                   { label: 'All Placement Statuses', value: 'all' },
-                  { label: 'Unplaced Only', value: 'unplaced' },
+                  { label: 'Yet to be Placed Only', value: 'yet_to_be_placed' },
                   { label: 'Placed Only', value: 'placed' },
                   { label: 'Opted Out', value: 'opted_out' },
                 ]}

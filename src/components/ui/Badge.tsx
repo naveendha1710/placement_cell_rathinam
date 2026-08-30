@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '../../lib/utils';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'secondary' | 'outline' | 'approved' | 'pending' | 'rejected' | 'placed' | 'unplaced' | 'opted_out';
+  variant?: 'default' | 'secondary' | 'outline' | 'approved' | 'pending' | 'rejected' | 'placed' | 'unplaced' | 'yet_to_be_placed' | 'opted_out';
 }
 
 export const Badge: React.FC<BadgeProps> = ({ className, variant = 'default', children, ...props }) => {
@@ -19,6 +19,7 @@ export const Badge: React.FC<BadgeProps> = ({ className, variant = 'default', ch
     rejected: 'bg-rose-100 text-rose-800 border border-rose-300',
     placed: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
     unplaced: 'bg-zinc-100 text-zinc-700 border border-zinc-300',
+    yet_to_be_placed: 'bg-amber-50 text-amber-800 border border-amber-300',
     opted_out: 'bg-slate-100 text-slate-600 border border-slate-300',
   };
 

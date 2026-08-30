@@ -46,7 +46,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     email: '',
     mobile_number: '',
     backlogs_count: '0',
-    placement_status: 'unplaced' as PlacementStatus,
+    placement_status: 'yet_to_be_placed' as PlacementStatus,
     github_url: '',
     linkedin_url: '',
     portfolio_url: '',
@@ -76,7 +76,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
         email: student.email || '',
         mobile_number: student.mobile_number || '',
         backlogs_count: student.backlogs_count?.toString() || '0',
-        placement_status: student.placement_status || 'unplaced',
+        placement_status: student.placement_status || 'yet_to_be_placed',
         github_url: student.github_url || '',
         linkedin_url: student.linkedin_url || '',
         portfolio_url: student.portfolio_url || '',
@@ -102,7 +102,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
         email: '',
         mobile_number: '',
         backlogs_count: '0',
-        placement_status: 'unplaced',
+        placement_status: 'yet_to_be_placed',
         github_url: '',
         linkedin_url: '',
         portfolio_url: '',
@@ -258,7 +258,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               value={formData.placement_status}
               onChange={(e) => setFormData({ ...formData, placement_status: e.target.value as PlacementStatus })}
               options={[
-                { label: 'Unplaced', value: 'unplaced' },
+                { label: 'Yet to be Placed', value: 'yet_to_be_placed' },
                 { label: 'Placed', value: 'placed' },
                 { label: 'Opted Out', value: 'opted_out' },
               ]}

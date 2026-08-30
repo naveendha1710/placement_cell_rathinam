@@ -19,7 +19,7 @@ export interface Profile {
   created_at: string;
 }
 
-export type PlacementStatus = 'unplaced' | 'placed' | 'opted_out';
+export type PlacementStatus = 'yet_to_be_placed' | 'placed' | 'opted_out';
 export type PGStatus = 'not_applicable' | 'pursuing' | 'completed';
 export type ResidencyType = 'day_scholar' | 'hosteller';
 
@@ -30,14 +30,17 @@ export interface Student {
   department: string;
   gender?: string | null;
   residency?: ResidencyType | null;
+  source?: string | null;
   sslc_percentage?: number | null;
   hsc_percentage?: number | null;
   ug_cgpa?: number | null;
   ug_percentage?: number | null;
   pg_cgpa?: number | null;
+  pg_percentage?: number | null;
   pg_status?: PGStatus;
   ug_graduation_year?: number | null;
   pg_graduation_year?: number | null;
+  graduation_date?: string | null;
   github_url?: string | null;
   linkedin_url?: string | null;
   portfolio_url?: string | null;
@@ -45,6 +48,7 @@ export interface Student {
   video_intro_link?: string | null;
   photo_file?: string | null;
   email: string;
+  personal_email?: string | null;
   mobile_number?: string | null;
   backlogs_count: number;
   placement_status: PlacementStatus;

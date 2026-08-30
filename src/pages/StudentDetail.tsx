@@ -9,7 +9,7 @@ import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { 
   ArrowLeft, Edit, Mail, Phone, 
-  FileText, Github, Linkedin, Globe, Briefcase, Calendar, Video, AlertCircle, ExternalLink 
+  FileText, Github, Linkedin, Globe, Briefcase, Calendar, Video, AlertCircle, ExternalLink, Copy, Check 
 } from 'lucide-react';
 
 export const StudentDetail: React.FC = () => {
@@ -22,6 +22,13 @@ export const StudentDetail: React.FC = () => {
   const [offersMap, setOffersMap] = useState<Record<string, Offer>>({});
   const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
 
   const loadData = async () => {
     if (!id) return;
@@ -304,32 +311,83 @@ export const StudentDetail: React.FC = () => {
             {/* Profile Details List */}
             <div className="border-t border-zinc-100 pt-4 text-left space-y-3 text-xs">
               <div className="flex items-center justify-between py-1 border-b border-zinc-50">
+                <span className="text-zinc-500 font-medium">Source Column</span>
+                <span className="font-bold text-zinc-900">{student.source || 'Direct Entry'}</span>
+              </div>
+
+              <div className="flex items-center justify-between py-1 border-b border-zinc-50">
                 <span className="text-zinc-500 font-medium">Gender</span>
                 <span className="font-semibold text-zinc-900">{student.gender || 'Not specified'}</span>
               </div>
 
               <div className="flex items-center justify-between py-1 border-b border-zinc-50">
-                <span className="text-zinc-500 font-medium">Residency</span>
+                <span className="text-zinc-500 font-medium">Student Type / Residency</span>
                 <span className="font-semibold text-zinc-900 capitalize">{student.residency?.replace('_', ' ') || 'Day Scholar'}</span>
               </div>
 
               <div className="flex items-center justify-between py-1 border-b border-zinc-50">
-                <span className="text-zinc-500 font-medium">UG Grad Year</span>
-                <span className="font-semibold text-zinc-900">{student.ug_graduation_year || '2026'}</span>
+                <span className="text-zinc-500 font-medium">Graduation Date</span>
+                <span className="font-semibold text-zinc-900">{student.graduation_date || student.ug_graduation_year || '2026'}</span>
               </div>
 
-              {/* Email */}
+              {/* College Email */}
               <div className="space-y-1 py-1 border-b border-zinc-50">
-                <span className="text-zinc-500 font-medium block">Email Address</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-500 font-medium">College Email</span>
+                  {student.email && (
+                    <button
+                      onClick={() => handleCopy(student.email, 'email')}
+                      className="p-1 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded transition-colors"
+                      title="Copy College Email"
+                    >
+                      {copiedKey === 'email' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  )}
+                </div>
                 <a href={`mailto:${student.email}`} className="font-semibold text-blue-600 hover:underline truncate block">
                   <Mail className="h-3.5 w-3.5 inline mr-1.5 text-blue-500" />
                   <span>{student.email}</span>
                 </a>
               </div>
 
+              {/* Personal Email */}
+              <div className="space-y-1 py-1 border-b border-zinc-50">
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-500 font-medium">Personal Email</span>
+                  {student.personal_email && (
+                    <button
+                      onClick={() => handleCopy(student.personal_email!, 'personal_email')}
+                      className="p-1 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded transition-colors"
+                      title="Copy Personal Email"
+                    >
+                      {copiedKey === 'personal_email' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  )}
+                </div>
+                {student.personal_email ? (
+                  <a href={`mailto:${student.personal_email}`} className="font-semibold text-zinc-900 hover:underline truncate block">
+                    <Mail className="h-3.5 w-3.5 inline mr-1.5 text-zinc-500" />
+                    <span>{student.personal_email}</span>
+                  </a>
+                ) : (
+                  <span className="text-zinc-400 italic">Not provided</span>
+                )}
+              </div>
+
               {/* Mobile */}
               <div className="space-y-1 py-1 border-b border-zinc-50">
-                <span className="text-zinc-500 font-medium block">Mobile Number</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-500 font-medium">Mobile Number</span>
+                  {student.mobile_number && (
+                    <button
+                      onClick={() => handleCopy(student.mobile_number!, 'mobile_number')}
+                      className="p-1 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded transition-colors"
+                      title="Copy Mobile Number"
+                    >
+                      {copiedKey === 'mobile_number' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  )}
+                </div>
                 {student.mobile_number ? (
                   <a href={`tel:${student.mobile_number}`} className="font-semibold text-zinc-900 hover:underline flex items-center gap-1.5">
                     <Phone className="h-3.5 w-3.5 text-zinc-500" />

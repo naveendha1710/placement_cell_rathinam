@@ -182,7 +182,7 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
   const kpis = useMemo(() => {
     const total = filteredStudents.length;
     const placed = filteredStudents.filter(s => s.placement_status === 'placed').length;
-    const unplaced = filteredStudents.filter(s => s.placement_status === 'unplaced').length;
+    const unplaced = filteredStudents.filter(s => s.placement_status === 'yet_to_be_placed').length;
     const optedOut = filteredStudents.filter(s => s.placement_status === 'opted_out').length;
     return { total, placed, unplaced, optedOut };
   }, [filteredStudents]);
@@ -230,7 +230,7 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
             <Clock className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Unplaced Candidates</span>
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Yet to be Placed Candidates</span>
             <span className="text-xl font-bold text-amber-700 font-mono">{kpis.unplaced}</span>
           </div>
         </Card>
@@ -266,7 +266,7 @@ export const StudentReportView: React.FC<StudentReportViewProps> = ({ onRowsChan
             onChange={(e) => setSelectedStatus(e.target.value)}
             options={[
               { label: 'All Statuses', value: 'All Statuses' },
-              { label: 'Unplaced', value: 'unplaced' },
+              { label: 'Yet to be Placed', value: 'yet_to_be_placed' },
               { label: 'Placed', value: 'placed' },
               { label: 'Opted Out', value: 'opted_out' },
             ]}

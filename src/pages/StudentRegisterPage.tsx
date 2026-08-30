@@ -206,7 +206,7 @@ export const StudentRegisterPage: React.FC = () => {
         resume_file: resumeFile || undefined,
         ug_cgpa: existingStudent?.ug_cgpa ?? 8.0,
         backlogs_count: existingStudent?.backlogs_count ?? 0,
-        placement_status: existingStudent?.placement_status || 'unplaced',
+        placement_status: existingStudent?.placement_status || 'yet_to_be_placed',
       };
 
       const savedStudent = await DataStore.saveStudent(studentPayload);

@@ -129,14 +129,17 @@ export const DataStore = {
       department: studentData.department,
       gender: studentData.gender || null,
       residency: studentData.residency || null,
+      source: studentData.source || null,
       sslc_percentage: studentData.sslc_percentage ?? null,
       hsc_percentage: studentData.hsc_percentage ?? null,
       ug_cgpa: studentData.ug_cgpa ?? null,
       ug_percentage: studentData.ug_percentage ?? null,
       pg_cgpa: studentData.pg_cgpa ?? null,
+      pg_percentage: studentData.pg_percentage ?? null,
       pg_status: studentData.pg_status || 'not_applicable',
       ug_graduation_year: studentData.ug_graduation_year ?? null,
       pg_graduation_year: studentData.pg_graduation_year ?? null,
+      graduation_date: studentData.graduation_date || null,
       github_url: studentData.github_url || null,
       linkedin_url: studentData.linkedin_url || null,
       portfolio_url: studentData.portfolio_url || null,
@@ -144,9 +147,10 @@ export const DataStore = {
       video_intro_link: studentData.video_intro_link || null,
       photo_file: studentData.photo_file || null,
       email: studentData.email,
+      personal_email: studentData.personal_email || null,
       mobile_number: studentData.mobile_number || null,
       backlogs_count: studentData.backlogs_count || 0,
-      placement_status: studentData.placement_status || 'unplaced',
+      placement_status: studentData.placement_status || 'yet_to_be_placed',
       created_by: studentData.created_by || null,
       created_at: studentData.created_at || now,
       updated_at: now,
@@ -229,21 +233,35 @@ export const DataStore = {
         name,
         department,
         email,
+        personal_email: (item['personal_email'] || item['Personal Email'] || item['Personal Email ID'] || null),
+        mobile_number: (item['mobile_number'] || item['Mobile No'] || item['Mobile Number'] || item['Mobile'] || null),
         gender: (item['gender'] || item['Gender'] || null),
-        residency: (item['residency'] || item['Residency'] || item['Residency Type'] || 'day_scholar'),
-        sslc_percentage: item['sslc_percentage'] || item['10th %'] || item['10th Percentage'] ? parseFloat(item['sslc_percentage'] || item['10th %'] || item['10th Percentage']) : null,
-        hsc_percentage: item['hsc_percentage'] || item['12th %'] || item['12th Percentage'] ? parseFloat(item['hsc_percentage'] || item['12th %'] || item['12th Percentage']) : null,
+        residency: (item['residency'] || item['Residency'] || item['Residency Type'] || item['Student Type'] || 'day_scholar'),
+        source: (item['source'] || item['Source'] || item['Source Column'] || null),
+        sslc_percentage: item['sslc_percentage'] || item['10th %'] || item['10th Percentage'] || item['SSLC %'] ? parseFloat(item['sslc_percentage'] || item['10th %'] || item['10th Percentage'] || item['SSLC %']) : null,
+        hsc_percentage: item['hsc_percentage'] || item['12th %'] || item['12th Percentage'] || item['HSC %'] ? parseFloat(item['hsc_percentage'] || item['12th %'] || item['12th Percentage'] || item['HSC %']) : null,
         ug_cgpa: item['ug_cgpa'] || item['UG CGPA'] || item['CGPA'] ? parseFloat(item['ug_cgpa'] || item['UG CGPA'] || item['CGPA']) : null,
+        ug_percentage: item['ug_percentage'] || item['UG %'] || item['UG Percentage'] ? parseFloat(item['ug_percentage'] || item['UG %'] || item['UG Percentage']) : null,
+        pg_cgpa: item['pg_cgpa'] || item['PG CGPA'] ? parseFloat(item['pg_cgpa'] || item['PG CGPA']) : null,
+        pg_percentage: item['pg_percentage'] || item['PG %'] || item['PG Percentage'] ? parseFloat(item['pg_percentage'] || item['PG %'] || item['PG Percentage']) : null,
+        graduation_date: (item['graduation_date'] || item['Graduation Date'] || item['Graduation Year'] || null),
+        linkedin_url: (item['linkedin_url'] || item['LinkedIn URL'] || item['LinkedIn ID'] || null),
+        github_url: (item['github_url'] || item['GitHub URL'] || item['GitHub ID'] || null),
+        portfolio_url: (item['portfolio_url'] || item['Portfolio URL'] || item['Portfolio'] || null),
+        resume_file: (item['resume_file'] || item['Resume Link'] || item['Resume'] || null),
+        photo_file: (item['photo_file'] || item['Student Photo'] || item['Photo'] || null),
         backlogs_count: item['backlogs_count'] || item['Backlogs'] ? parseInt(item['backlogs_count'] || item['Backlogs']) : 0,
-        placement_status: (item['placement_status'] || item['Placement Status'] || 'unplaced'),
-        linkedin_url: (item['linkedin_url'] || item['LinkedIn URL'] || null),
-        github_url: (item['github_url'] || item['GitHub URL'] || null),
-        portfolio_url: (item['portfolio_url'] || item['Portfolio URL'] || null),
+        placement_status: (item['placement_status'] || item['Placement Status'] || 'yet_to_be_placed'),
         created_at: now,
         updated_at: now,
       };
 
-      toInsert.push(studentRecord);
+      // Strip null/undefined values to prevent PostgREST PGRST204 schema cache errors when optional columns are pending SQL migration
+      const cleanRecord = Object.fromEntries(
+        Object.entries(studentRecord).filter(([_, v]) => v !== null && v !== undefined)
+      ) as Student;
+
+      toInsert.push(cleanRecord);
     }
 
     if (toInsert.length > 0) {

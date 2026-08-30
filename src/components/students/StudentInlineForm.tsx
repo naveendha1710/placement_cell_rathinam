@@ -38,18 +38,22 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
     department: defaultDept,
     gender: 'Male',
     residency: 'day_scholar' as ResidencyType,
+    source: '',
     sslc_percentage: '',
     hsc_percentage: '',
     ug_cgpa: '',
     ug_percentage: '',
     pg_cgpa: '',
+    pg_percentage: '',
     pg_status: 'not_applicable' as PGStatus,
     ug_graduation_year: '2026',
     pg_graduation_year: '',
+    graduation_date: '',
     email: '',
+    personal_email: '',
     mobile_number: '',
     backlogs_count: '0',
-    placement_status: 'unplaced' as PlacementStatus,
+    placement_status: 'yet_to_be_placed' as PlacementStatus,
     github_url: '',
     linkedin_url: '',
     portfolio_url: '',
@@ -70,18 +74,22 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
         department: (role === 'dept_coordinator' && departmentScope) ? departmentScope : (student.department || DEPARTMENTS[0]),
         gender: student.gender || 'Male',
         residency: (student.residency as ResidencyType) || 'day_scholar',
+        source: student.source || '',
         sslc_percentage: student.sslc_percentage?.toString() || '',
         hsc_percentage: student.hsc_percentage?.toString() || '',
         ug_cgpa: student.ug_cgpa?.toString() || '',
         ug_percentage: student.ug_percentage?.toString() || '',
         pg_cgpa: student.pg_cgpa?.toString() || '',
+        pg_percentage: student.pg_percentage?.toString() || '',
         pg_status: student.pg_status || 'not_applicable',
         ug_graduation_year: student.ug_graduation_year?.toString() || '2026',
         pg_graduation_year: student.pg_graduation_year?.toString() || '',
+        graduation_date: student.graduation_date || '',
         email: student.email || '',
+        personal_email: student.personal_email || '',
         mobile_number: student.mobile_number || '',
         backlogs_count: student.backlogs_count?.toString() || '0',
-        placement_status: student.placement_status || 'unplaced',
+        placement_status: student.placement_status || 'yet_to_be_placed',
         github_url: student.github_url || '',
         linkedin_url: student.linkedin_url || '',
         portfolio_url: student.portfolio_url || '',
@@ -135,15 +143,19 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
         department: formData.department,
         gender: formData.gender,
         residency: formData.residency,
+        source: formData.source.trim(),
         sslc_percentage: formData.sslc_percentage ? parseFloat(formData.sslc_percentage) : null,
         hsc_percentage: formData.hsc_percentage ? parseFloat(formData.hsc_percentage) : null,
         ug_cgpa: formData.ug_cgpa ? parseFloat(formData.ug_cgpa) : null,
         ug_percentage: formData.ug_percentage ? parseFloat(formData.ug_percentage) : null,
         pg_cgpa: formData.pg_cgpa ? parseFloat(formData.pg_cgpa) : null,
+        pg_percentage: formData.pg_percentage ? parseFloat(formData.pg_percentage) : null,
         pg_status: formData.pg_status,
         ug_graduation_year: formData.ug_graduation_year ? parseInt(formData.ug_graduation_year) : null,
         pg_graduation_year: formData.pg_graduation_year ? parseInt(formData.pg_graduation_year) : null,
+        graduation_date: formData.graduation_date.trim(),
         email: formData.email.trim(),
+        personal_email: formData.personal_email.trim(),
         mobile_number: formData.mobile_number.trim(),
         backlogs_count: parseInt(formData.backlogs_count) || 0,
         placement_status: formData.placement_status,
@@ -204,7 +216,7 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
             />
 
             <Input
-              label="Email Address *"
+              label="College Email Address *"
               type="email"
               placeholder="aarav@rathinam.edu.in"
               value={formData.email}
@@ -212,10 +224,29 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
               required
             />
             <Input
+              label="Personal Email Address"
+              type="email"
+              placeholder="aarav.personal@gmail.com"
+              value={formData.personal_email}
+              onChange={(e) => setFormData({ ...formData, personal_email: e.target.value })}
+            />
+            <Input
               label="Mobile Number"
               placeholder="+91 9876543210"
               value={formData.mobile_number}
               onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
+            />
+            <Input
+              label="Source Column / Channel"
+              placeholder="e.g. Walk-in, Portal, Referral"
+              value={formData.source}
+              onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+            />
+            <Input
+              label="Graduation Date"
+              type="date"
+              value={formData.graduation_date}
+              onChange={(e) => setFormData({ ...formData, graduation_date: e.target.value })}
             />
             <Select
               label="Gender"
@@ -242,7 +273,7 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
               value={formData.placement_status}
               onChange={(e) => setFormData({ ...formData, placement_status: e.target.value as PlacementStatus })}
               options={[
-                { label: 'Unplaced', value: 'unplaced' },
+                { label: 'Yet to be Placed', value: 'yet_to_be_placed' },
                 { label: 'Placed', value: 'placed' },
                 { label: 'Opted Out', value: 'opted_out' },
               ]}

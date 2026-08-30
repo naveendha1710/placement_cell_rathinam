@@ -34,7 +34,7 @@ export const Dashboard: React.FC = () => {
         setStats({
           totalStudents: students.length,
           placedStudents: students.filter(s => s.placement_status === 'placed').length,
-          unplacedStudents: students.filter(s => s.placement_status === 'unplaced').length,
+          unplacedStudents: students.filter(s => s.placement_status === 'yet_to_be_placed').length,
           optedOutStudents: students.filter(s => s.placement_status === 'opted_out').length,
           totalCompanies: companies.length,
           approvedCompanies: companies.filter(c => c.approval_status === 'approved').length,
@@ -150,7 +150,7 @@ export const Dashboard: React.FC = () => {
             <Clock className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs text-zinc-500 font-medium">Unplaced Students</p>
+            <p className="text-xs text-zinc-500 font-medium">Yet to be Placed Students</p>
             <p className="text-xl font-bold text-zinc-900">{stats.unplacedStudents}</p>
           </div>
         </div>

@@ -28,11 +28,14 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({ type, onSuccess })
 
     if (type === 'students') {
       headers = [
-        'roll_number', 'name', 'department', 'gender', 'residency',
-        'sslc_percentage', 'hsc_percentage', 'ug_cgpa', 'ug_percentage',
-        'ug_graduation_year', 'email', 'mobile_number', 'backlogs_count', 'placement_status'
+        'source', 'roll_number', 'name', 'department', 'gender', 'residency',
+        'sslc_percentage', 'hsc_percentage', 'ug_percentage', 'ug_cgpa',
+        'pg_percentage', 'pg_cgpa', 'github_url', 'resume_file', 'linkedin_url',
+        'graduation_date', 'portfolio_url', 'personal_email', 'email',
+        'mobile_number', 'photo_file', 'backlogs_count', 'placement_status'
       ];
       sampleRow = {
+        source: 'Campus Walk-in',
         roll_number: '714021104099',
         name: 'John Doe',
         department: 'Computer Science',
@@ -40,13 +43,21 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({ type, onSuccess })
         residency: 'day_scholar',
         sslc_percentage: 90.0,
         hsc_percentage: 88.5,
-        ug_cgpa: 8.5,
         ug_percentage: 85.0,
-        ug_graduation_year: 2026,
+        ug_cgpa: 8.5,
+        pg_percentage: 0.0,
+        pg_cgpa: 0.0,
+        github_url: 'https://github.com/johndoe',
+        resume_file: 'https://drive.google.com/resume.pdf',
+        linkedin_url: 'https://linkedin.com/in/johndoe',
+        graduation_date: '2026-05-30',
+        portfolio_url: 'https://johndoe.dev',
+        personal_email: 'john.personal@gmail.com',
         email: 'john.doe@rathinam.edu.in',
         mobile_number: '+91 9988776655',
+        photo_file: 'https://drive.google.com/photo.jpg',
         backlogs_count: 0,
-        placement_status: 'unplaced',
+        placement_status: 'yet_to_be_placed',
       };
     } else {
       headers = [
