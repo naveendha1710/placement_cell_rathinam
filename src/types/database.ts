@@ -22,6 +22,7 @@ export interface Profile {
 export type PlacementStatus = 'yet_to_be_placed' | 'placed' | 'opted_out';
 export type PGStatus = 'not_applicable' | 'pursuing' | 'completed';
 export type ResidencyType = 'day_scholar' | 'hosteller';
+export type StudentBatch = 'T' | 'O' | 'S' | 'A' | 'X';
 
 export interface Student {
   student_id: string;
@@ -30,6 +31,7 @@ export interface Student {
   department: string;
   gender?: string | null;
   residency?: ResidencyType | null;
+  batch?: StudentBatch | null;
   source?: string | null;
   sslc_percentage?: number | null;
   hsc_percentage?: number | null;

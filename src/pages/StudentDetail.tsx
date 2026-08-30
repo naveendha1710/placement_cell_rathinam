@@ -305,6 +305,12 @@ export const StudentDetail: React.FC = () => {
                 <h2 className="text-lg font-bold text-zinc-900">{student.name}</h2>
                 <p className="text-xs font-mono font-bold text-zinc-500">{student.roll_number}</p>
                 <p className="text-xs font-semibold text-emerald-700 mt-1">{student.department}</p>
+                
+                <div className="mt-2.5 flex items-center justify-center gap-1.5">
+                  <span className="text-[11px] font-semibold px-3 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200 uppercase">
+                    Batch {student.batch || 'A'}
+                  </span>
+                </div>
               </div>
             </div>
 

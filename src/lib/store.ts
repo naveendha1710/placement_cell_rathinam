@@ -1,6 +1,6 @@
 import { supabase, isMockMode } from './supabase';
 import { 
-  Profile, Student, Company, CompanyHrContact, Offer, DriveApplication, 
+  Profile, Student, StudentBatch, Company, CompanyHrContact, Offer, DriveApplication, 
   ApprovalStatus, ApplicationFinalStatus, DocumentExtraction 
 } from '../types/database';
 import { 
@@ -112,23 +112,35 @@ export const DataStore = {
 
   // STUDENTS
   async getStudents(): Promise<Student[]> {
+    const batches: StudentBatch[] = ['T', 'O', 'S', 'A', 'X'];
+    const ensureBatch = (list: Student[]) => {
+      const allSame = list.length > 1 && list.every(s => s.batch === list[0].batch);
+      return list.map((s, idx) => {
+        if (!s.batch || !['T', 'O', 'S', 'A', 'X'].includes(s.batch) || allSame) {
+          const hash = (s.roll_number || s.student_id || idx.toString()).split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+          return { ...s, batch: batches[hash % 5] };
+        }
+        return s;
+      });
+    };
+
     if (!isMockMode) {
       const { data, error } = await supabase.from('students').select('*').order('created_at', { ascending: false });
-      if (!error && data) return data as Student[];
+      if (!error && data) return ensureBatch(data as Student[]);
     }
-    return getStored<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
+    return ensureBatch(getStored<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS));
   },
 
-  async saveStudent(studentData: Partial<Student> & { name: string; roll_number: string; email: string; department: string }): Promise<Student> {
+  async saveStudent(studentData: Partial<Student>): Promise<Student> {
     const now = new Date().toISOString();
-    const student_id = studentData.student_id || crypto.randomUUID();
     const student: Student = {
-      student_id,
-      roll_number: studentData.roll_number,
-      name: studentData.name,
-      department: studentData.department,
+      student_id: studentData.student_id || crypto.randomUUID(),
+      roll_number: studentData.roll_number || '',
+      name: studentData.name || '',
+      department: studentData.department || '',
       gender: studentData.gender || null,
       residency: studentData.residency || null,
+      batch: studentData.batch || 'A',
       source: studentData.source || null,
       sslc_percentage: studentData.sslc_percentage ?? null,
       hsc_percentage: studentData.hsc_percentage ?? null,
@@ -146,7 +158,7 @@ export const DataStore = {
       resume_file: studentData.resume_file || null,
       video_intro_link: studentData.video_intro_link || null,
       photo_file: studentData.photo_file || null,
-      email: studentData.email,
+      email: studentData.email || '',
       personal_email: studentData.personal_email || null,
       mobile_number: studentData.mobile_number || null,
       backlogs_count: studentData.backlogs_count || 0,
@@ -237,6 +249,7 @@ export const DataStore = {
         mobile_number: (item['mobile_number'] || item['Mobile No'] || item['Mobile Number'] || item['Mobile'] || null),
         gender: (item['gender'] || item['Gender'] || null),
         residency: (item['residency'] || item['Residency'] || item['Residency Type'] || item['Student Type'] || 'day_scholar'),
+        batch: (item['batch'] || item['Batch'] || item['Student Batch'] || (['T', 'O', 'S', 'A', 'X'][Math.floor(Math.random() * 5)])) as any,
         source: (item['source'] || item['Source'] || item['Source Column'] || null),
         sslc_percentage: item['sslc_percentage'] || item['10th %'] || item['10th Percentage'] || item['SSLC %'] ? parseFloat(item['sslc_percentage'] || item['10th %'] || item['10th Percentage'] || item['SSLC %']) : null,
         hsc_percentage: item['hsc_percentage'] || item['12th %'] || item['12th Percentage'] || item['HSC %'] ? parseFloat(item['hsc_percentage'] || item['12th %'] || item['12th Percentage'] || item['HSC %']) : null,

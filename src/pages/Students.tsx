@@ -23,6 +23,7 @@ export const Students: React.FC = () => {
   const [deptFilter, setDeptFilter] = useState(departmentScope || 'all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [residencyFilter, setResidencyFilter] = useState('all');
+  const [batchFilter, setBatchFilter] = useState('all');
   const [cgpaFilter, setCgpaFilter] = useState('all');
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -51,7 +52,7 @@ export const Students: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, deptFilter, statusFilter, residencyFilter, cgpaFilter]);
+  }, [search, deptFilter, statusFilter, residencyFilter, batchFilter, cgpaFilter]);
 
   const handleSaveStudent = async (studentData: Partial<Student> & { name: string; roll_number: string; email: string; department: string }) => {
     await DataStore.saveStudent(studentData);
@@ -74,9 +75,10 @@ export const Students: React.FC = () => {
     const matchesDept = deptFilter === 'all' || st.department === deptFilter;
     const matchesStatus = statusFilter === 'all' || st.placement_status === statusFilter;
     const matchesResidency = residencyFilter === 'all' || st.residency === residencyFilter;
+    const matchesBatch = batchFilter === 'all' || st.batch === batchFilter;
     const matchesCgpa = cgpaFilter === 'all' || (st.ug_cgpa !== null && st.ug_cgpa !== undefined && st.ug_cgpa >= parseFloat(cgpaFilter));
     
-    return matchesSearch && matchesDept && matchesStatus && matchesResidency && matchesCgpa;
+    return matchesSearch && matchesDept && matchesStatus && matchesResidency && matchesBatch && matchesCgpa;
   });
 
   const totalPages = Math.ceil(filteredStudents.length / pageSize);
@@ -118,47 +120,67 @@ export const Students: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
+      {/* Clickable KPI Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5">
-          <div className="p-2.5 rounded-lg bg-zinc-900 text-white shrink-0">
-            <GraduationCap className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Total Registered</span>
-            <span className="text-xl font-bold text-zinc-900 font-mono">{totalCount}</span>
-          </div>
-        </Card>
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={`text-left cursor-pointer transition-all ${statusFilter === 'all' ? 'ring-2 ring-zinc-900 rounded-xl' : 'hover:opacity-90'}`}
+        >
+          <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5 h-full">
+            <div className="p-2.5 rounded-lg bg-zinc-900 text-white shrink-0">
+              <GraduationCap className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Total Registered</span>
+              <span className="text-xl font-bold text-zinc-900 font-mono">{totalCount}</span>
+            </div>
+          </Card>
+        </button>
 
-        <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5">
-          <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-            <CheckCircle2 className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Placed Candidates</span>
-            <span className="text-xl font-bold text-emerald-700 font-mono">{placedCount}</span>
-          </div>
-        </Card>
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'placed' ? 'all' : 'placed')}
+          className={`text-left cursor-pointer transition-all ${statusFilter === 'placed' ? 'ring-2 ring-emerald-600 rounded-xl' : 'hover:opacity-90'}`}
+        >
+          <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5 h-full">
+            <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Placed Candidates</span>
+              <span className="text-xl font-bold text-emerald-700 font-mono">{placedCount}</span>
+            </div>
+          </Card>
+        </button>
 
-        <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5">
-          <div className="p-2.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
-            <Clock className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Yet to be Placed</span>
-            <span className="text-xl font-bold text-amber-700 font-mono">{unplacedCount}</span>
-          </div>
-        </Card>
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'yet_to_be_placed' ? 'all' : 'yet_to_be_placed')}
+          className={`text-left cursor-pointer transition-all ${statusFilter === 'yet_to_be_placed' ? 'ring-2 ring-amber-600 rounded-xl' : 'hover:opacity-90'}`}
+        >
+          <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5 h-full">
+            <div className="p-2.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+              <Clock className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Yet to be Placed</span>
+              <span className="text-xl font-bold text-amber-700 font-mono">{unplacedCount}</span>
+            </div>
+          </Card>
+        </button>
 
-        <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5">
-          <div className="p-2.5 rounded-lg bg-zinc-100 text-zinc-700 border border-zinc-200 shrink-0">
-            <UserX className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Opted Out</span>
-            <span className="text-xl font-bold text-zinc-800 font-mono">{optedOutCount}</span>
-          </div>
-        </Card>
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'opted_out' ? 'all' : 'opted_out')}
+          className={`text-left cursor-pointer transition-all ${statusFilter === 'opted_out' ? 'ring-2 ring-slate-600 rounded-xl' : 'hover:opacity-90'}`}
+        >
+          <Card className="p-4 bg-white border-zinc-200 flex items-center gap-3.5 h-full">
+            <div className="p-2.5 rounded-lg bg-zinc-100 text-zinc-700 border border-zinc-200 shrink-0">
+              <UserX className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Opted Out</span>
+              <span className="text-xl font-bold text-zinc-800 font-mono">{optedOutCount}</span>
+            </div>
+          </Card>
+        </button>
       </div>
 
       {/* Inline Form Container */}
@@ -172,7 +194,7 @@ export const Students: React.FC = () => {
         <>
           {/* Filter Bar */}
           <Card className="p-4 bg-white border-zinc-200 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
               <div className="relative md:col-span-2 lg:col-span-1">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
                 <input
@@ -209,6 +231,19 @@ export const Students: React.FC = () => {
                   { label: 'Yet to be Placed Only', value: 'yet_to_be_placed' },
                   { label: 'Placed Only', value: 'placed' },
                   { label: 'Opted Out', value: 'opted_out' },
+                ]}
+              />
+
+              <Select
+                value={batchFilter}
+                onChange={(e) => setBatchFilter(e.target.value)}
+                options={[
+                  { label: 'All Student Batches', value: 'all' },
+                  { label: 'Batch T', value: 'T' },
+                  { label: 'Batch O', value: 'O' },
+                  { label: 'Batch S', value: 'S' },
+                  { label: 'Batch A', value: 'A' },
+                  { label: 'Batch X', value: 'X' },
                 ]}
               />
 
@@ -251,6 +286,7 @@ export const Students: React.FC = () => {
                     <tr>
                       <th className="py-3 px-4">Roll Number</th>
                       <th className="py-3 px-4">Student Name</th>
+                      <th className="py-3 px-4">Batch</th>
                       <th className="py-3 px-4">Department</th>
                       <th className="py-3 px-4">CGPA</th>
                       <th className="py-3 px-4">Backlogs</th>
@@ -279,6 +315,11 @@ export const Students: React.FC = () => {
                             </button>
                             <p className="text-[11px] text-zinc-500">{st.email}</p>
                           </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200">
+                            Batch {st.batch || 'A'}
+                          </span>
                         </td>
                         <td className="py-3 px-4 font-medium text-zinc-800">{st.department}</td>
                         <td className="py-3 px-4 font-semibold text-zinc-900">

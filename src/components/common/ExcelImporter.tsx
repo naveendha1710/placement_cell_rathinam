@@ -28,7 +28,7 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({ type, onSuccess })
 
     if (type === 'students') {
       headers = [
-        'source', 'roll_number', 'name', 'department', 'gender', 'residency',
+        'source', 'roll_number', 'name', 'department', 'gender', 'residency', 'batch',
         'sslc_percentage', 'hsc_percentage', 'ug_percentage', 'ug_cgpa',
         'pg_percentage', 'pg_cgpa', 'github_url', 'resume_file', 'linkedin_url',
         'graduation_date', 'portfolio_url', 'personal_email', 'email',
@@ -41,6 +41,7 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({ type, onSuccess })
         department: 'Computer Science',
         gender: 'Male',
         residency: 'day_scholar',
+        batch: 'T',
         sslc_percentage: 90.0,
         hsc_percentage: 88.5,
         ug_percentage: 85.0,

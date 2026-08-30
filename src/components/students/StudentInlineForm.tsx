@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Student, PlacementStatus, ResidencyType, PGStatus } from '../../types/database';
+import { Student, PlacementStatus, ResidencyType, PGStatus, StudentBatch } from '../../types/database';
 import { DataStore } from '../../lib/store';
 import { useAuth } from '../../context/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
@@ -38,6 +38,7 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
     department: defaultDept,
     gender: 'Male',
     residency: 'day_scholar' as ResidencyType,
+    batch: 'A' as StudentBatch,
     source: '',
     sslc_percentage: '',
     hsc_percentage: '',
@@ -74,6 +75,7 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
         department: (role === 'dept_coordinator' && departmentScope) ? departmentScope : (student.department || DEPARTMENTS[0]),
         gender: student.gender || 'Male',
         residency: (student.residency as ResidencyType) || 'day_scholar',
+        batch: (student.batch as StudentBatch) || 'A',
         source: student.source || '',
         sslc_percentage: student.sslc_percentage?.toString() || '',
         hsc_percentage: student.hsc_percentage?.toString() || '',
@@ -143,6 +145,7 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
         department: formData.department,
         gender: formData.gender,
         residency: formData.residency,
+        batch: formData.batch,
         source: formData.source.trim(),
         sslc_percentage: formData.sslc_percentage ? parseFloat(formData.sslc_percentage) : null,
         hsc_percentage: formData.hsc_percentage ? parseFloat(formData.hsc_percentage) : null,
@@ -266,6 +269,19 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
               options={[
                 { label: 'Day Scholar', value: 'day_scholar' },
                 { label: 'Hosteller', value: 'hosteller' },
+              ]}
+            />
+
+            <Select
+              label="Student Batch"
+              value={formData.batch}
+              onChange={(e) => setFormData({ ...formData, batch: e.target.value as StudentBatch })}
+              options={[
+                { label: 'Batch T', value: 'T' },
+                { label: 'Batch O', value: 'O' },
+                { label: 'Batch S', value: 'S' },
+                { label: 'Batch A', value: 'A' },
+                { label: 'Batch X', value: 'X' },
               ]}
             />
             <Select
