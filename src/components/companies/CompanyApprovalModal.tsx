@@ -23,7 +23,7 @@ export const CompanyApprovalModal: React.FC<CompanyApprovalModalProps> = ({
   onReject,
   onSubmitApproval,
 }) => {
-  const { user, canApprove } = useAuth();
+  const { canApprove } = useAuth();
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejectingMode, setIsRejectingMode] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -54,15 +54,9 @@ export const CompanyApprovalModal: React.FC<CompanyApprovalModalProps> = ({
     }
   };
 
-  const handleSubmitForApprovalAction = async () => {
-    setProcessing(true);
-    try {
-      await onSubmitApproval();
-      onClose();
-    } finally {
-      setProcessing(false);
-    }
-  };
+  const isApproved = company.approval_status === 'approved';
+  const isRejected = company.approval_status === 'rejected';
+  const isPending = company.approval_status === 'pending_approval' || company.approval_status === 'draft';
 
   return (
     <Modal
@@ -72,49 +66,67 @@ export const CompanyApprovalModal: React.FC<CompanyApprovalModalProps> = ({
         onClose();
       }}
       title={`Company Approval Workflow — ${company.name}`}
-      subtitle={`Current Status: ${company.approval_status.toUpperCase()}`}
-      maxWidth="md"
+      subtitle={`Current Approval Status: ${company.approval_status.replace('_', ' ').toUpperCase()}`}
+      maxWidth="lg"
     >
       <div className="space-y-4">
         {/* Status Info Box */}
-        <div className="p-4 rounded-lg bg-zinc-50 border border-zinc-200 space-y-2">
+        <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
           <div className="flex justify-between items-center text-xs">
-            <span className="font-semibold text-zinc-700">Approval State:</span>
-            <span className="font-bold text-zinc-900 uppercase">{company.approval_status}</span>
+            <span className="font-semibold text-zinc-600">Approval State:</span>
+            <span className={`font-extrabold px-2.5 py-0.5 rounded uppercase text-[11px] ${
+              isApproved ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+              isRejected ? 'bg-rose-100 text-rose-800 border border-rose-300' :
+              'bg-amber-100 text-amber-800 border border-amber-300'
+            }`}>
+              {company.approval_status.replace('_', ' ')}
+            </span>
           </div>
 
-          {company.approval_status === 'rejected' && company.rejection_reason && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded text-xs text-rose-800 space-y-1">
-              <div className="flex items-center gap-1 font-bold">
-                <AlertCircle className="h-3.5 w-3.5" /> Rejection Reason:
+          {isApproved && (
+            <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-center gap-2.5">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+              <div>
+                <p className="font-bold text-emerald-900">Approved by Placement Cell</p>
+                <p className="text-[11px] text-emerald-700">
+                  {company.approved_at ? `Approved on ${new Date(company.approved_at).toLocaleDateString()}` : 'Company profile is verified and active.'}
+                </p>
               </div>
-              <p>{company.rejection_reason}</p>
             </div>
           )}
 
-          {company.approval_status === 'approved' && company.approved_at && (
-            <p className="text-xs text-emerald-700 font-medium">
-              Approved by Placement Cell on {new Date(company.approved_at).toLocaleDateString()}
-            </p>
+          {isRejected && company.rejection_reason && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold">
+                <AlertCircle className="h-4 w-4 text-rose-600" /> Rejection Reason:
+              </div>
+              <p className="text-[11px] text-rose-700 pl-5">{company.rejection_reason}</p>
+            </div>
           )}
         </div>
 
         {/* Action Controls */}
-        {canApprove ? (
+        {isApproved ? (
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" size="sm" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        ) : canApprove && (isPending || isRejected) ? (
           <div className="space-y-4 pt-2">
             {!isRejectingMode ? (
-              <div className="flex gap-3">
+              <div className="flex items-center gap-3">
                 <Button
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-bold"
                   onClick={handleApproveAction}
-                  disabled={processing || company.approval_status === 'approved'}
+                  disabled={processing}
                 >
                   <CheckCircle2 className="h-4 w-4" />
-                  <span>{company.approval_status === 'approved' ? 'Company Approved ✓' : 'Approve Company Now'}</span>
+                  <span>{isRejected ? 'Re-Approve Company' : 'Approve Company'}</span>
                 </Button>
                 <Button
-                  variant="destructive"
-                  className="flex-1 gap-2"
+                  variant="outline"
+                  className="flex-1 border-rose-300 text-rose-700 hover:bg-rose-50 gap-2 font-bold"
                   onClick={() => setIsRejectingMode(true)}
                   disabled={processing}
                 >
@@ -142,26 +154,12 @@ export const CompanyApprovalModal: React.FC<CompanyApprovalModalProps> = ({
               </form>
             )}
           </div>
-        ) : (company.approval_status === 'draft' || company.approval_status === 'rejected') ? (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
-            <p className="text-xs text-amber-900 font-medium">
-              This company profile is currently in <span className="font-bold">{company.approval_status}</span> state. Submit it to Placement Cell for verification.
-            </p>
-            <Button
-              className="w-full gap-2"
-              onClick={handleSubmitForApprovalAction}
-              disabled={processing}
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              <span>Submit for Approval</span>
+        ) : (
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" size="sm" onClick={onClose}>
+              Close
             </Button>
           </div>
-        ) : (
-          <p className="text-xs text-zinc-500 text-center py-2">
-            {company.approval_status === 'approved' 
-              ? 'This company is fully approved and ready for attaching job offers.' 
-              : 'Waiting for Placement Coordinator review.'}
-          </p>
         )}
       </div>
     </Modal>

@@ -188,49 +188,81 @@ export const DataStore = {
     const reasons: string[] = [];
     let skipped = 0;
 
-    for (const item of newStudents) {
-      const roll = item.roll_number?.toLowerCase().trim();
-      const email = item.email?.toLowerCase().trim();
+    for (const rawItem of newStudents) {
+      const item = rawItem as any;
+      const roll = (item['roll_number'] || item['Roll Number'] || item['Roll'] || item['roll'] || '').toString().trim();
+      const name = (item['name'] || item['Name'] || item['Student Name'] || item['Full Name'] || '').toString().trim();
+      const department = (item['department'] || item['Department'] || item['Dept'] || '').toString().trim();
+      const email = (item['email'] || item['Email'] || item['Email Address'] || '').toString().trim();
 
-      if (!roll || !item.name || !item.department || !email) {
+      if (!roll || !name || !department || !email) {
         skipped++;
-        reasons.push(`Row missing required fields (Roll: ${item.roll_number || 'N/A'}, Name: ${item.name || 'N/A'})`);
+        reasons.push(`Row missing required fields (Roll: ${roll || 'N/A'}, Name: ${name || 'N/A'})`);
         continue;
       }
 
-      if (deptScope && item.department.toLowerCase().trim() !== deptScope.toLowerCase().trim()) {
+      if (deptScope && department.toLowerCase() !== deptScope.toLowerCase().trim()) {
         skipped++;
-        reasons.push(`Department '${item.department}' outside coordinator scope '${deptScope}'`);
+        reasons.push(`Department '${department}' outside coordinator scope '${deptScope}'`);
         continue;
       }
 
-      if (existingRolls.has(roll)) {
+      if (existingRolls.has(roll.toLowerCase())) {
         skipped++;
-        reasons.push(`Duplicate roll number: ${item.roll_number}`);
+        reasons.push(`Duplicate roll number: ${roll}`);
         continue;
       }
 
-      if (existingEmails.has(email)) {
+      if (existingEmails.has(email.toLowerCase())) {
         skipped++;
-        reasons.push(`Duplicate email address: ${item.email}`);
+        reasons.push(`Duplicate email address: ${email}`);
         continue;
       }
 
-      existingRolls.add(roll);
-      existingEmails.add(email);
+      existingRolls.add(roll.toLowerCase());
+      existingEmails.add(email.toLowerCase());
 
       const now = new Date().toISOString();
-      toInsert.push({
-        ...item,
+      const studentRecord: Student = {
         student_id: crypto.randomUUID(),
+        roll_number: roll,
+        name,
+        department,
+        email,
+        gender: (item['gender'] || item['Gender'] || null),
+        residency: (item['residency'] || item['Residency'] || item['Residency Type'] || 'day_scholar'),
+        sslc_percentage: item['sslc_percentage'] || item['10th %'] || item['10th Percentage'] ? parseFloat(item['sslc_percentage'] || item['10th %'] || item['10th Percentage']) : null,
+        hsc_percentage: item['hsc_percentage'] || item['12th %'] || item['12th Percentage'] ? parseFloat(item['hsc_percentage'] || item['12th %'] || item['12th Percentage']) : null,
+        ug_cgpa: item['ug_cgpa'] || item['UG CGPA'] || item['CGPA'] ? parseFloat(item['ug_cgpa'] || item['UG CGPA'] || item['CGPA']) : null,
+        backlogs_count: item['backlogs_count'] || item['Backlogs'] ? parseInt(item['backlogs_count'] || item['Backlogs']) : 0,
+        placement_status: (item['placement_status'] || item['Placement Status'] || 'unplaced'),
+        linkedin_url: (item['linkedin_url'] || item['LinkedIn URL'] || null),
+        github_url: (item['github_url'] || item['GitHub URL'] || null),
+        portfolio_url: (item['portfolio_url'] || item['Portfolio URL'] || null),
         created_at: now,
         updated_at: now,
-      });
+      };
+
+      toInsert.push(studentRecord);
     }
 
     if (toInsert.length > 0) {
       if (!isMockMode) {
-        await supabase.from('students').insert(toInsert);
+        try {
+          const { error } = await supabase.from('students').insert(toInsert);
+          if (error) {
+            console.error('Error inserting students into Supabase:', error);
+            const current = getStored<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
+            setStored(STORAGE_KEYS.STUDENTS, [...toInsert, ...current]);
+          } else {
+            const current = getStored<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
+            setStored(STORAGE_KEYS.STUDENTS, [...toInsert, ...current]);
+          }
+        } catch (err) {
+          console.error('Supabase students bulk insert exception:', err);
+          const current = getStored<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
+          setStored(STORAGE_KEYS.STUDENTS, [...toInsert, ...current]);
+        }
       } else {
         const current = getStored<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
         setStored(STORAGE_KEYS.STUDENTS, [...toInsert, ...current]);
@@ -240,11 +272,20 @@ export const DataStore = {
     return { inserted: toInsert.length, skipped, reasons };
   },
 
-  // COMPANIES
+    // COMPANIES
   async getCompanies(): Promise<Company[]> {
     if (!isMockMode) {
       const { data, error } = await supabase.from('companies').select('*').order('created_at', { ascending: false });
-      if (!error && data) return data as Company[];
+      if (!error && data) {
+        const local = getStored<Company[]>(STORAGE_KEYS.COMPANIES, INITIAL_COMPANIES);
+        return (data as Company[]).map(dbComp => {
+          const locComp = local.find(l => l.company_id === dbComp.company_id);
+          if (locComp && locComp.status) {
+            return { ...dbComp, status: locComp.status };
+          }
+          return dbComp;
+        });
+      }
     }
     return getStored<Company[]>(STORAGE_KEYS.COMPANIES, INITIAL_COMPANIES);
   },
@@ -253,7 +294,8 @@ export const DataStore = {
     const now = new Date().toISOString();
     const company_id = companyData.company_id || crypto.randomUUID();
 
-    let existingApprovalStatus = companyData.approval_status || 'approved';
+    let existingStatus = companyData.status || 'active';
+    let existingApprovalStatus = companyData.approval_status || 'pending_approval';
     let existingApprovedBy = companyData.approved_by || null;
     let existingApprovedAt = companyData.approved_at || null;
     let existingRejectionReason = companyData.rejection_reason || null;
@@ -262,7 +304,8 @@ export const DataStore = {
       const existingList = await this.getCompanies();
       const match = existingList.find(c => c.company_id === companyData.company_id);
       if (match) {
-        existingApprovalStatus = companyData.approval_status || match.approval_status || 'approved';
+        existingStatus = companyData.status || match.status || 'active';
+        existingApprovalStatus = companyData.approval_status || match.approval_status || 'pending_approval';
         existingApprovedBy = companyData.approved_by || match.approved_by || null;
         existingApprovedAt = companyData.approved_at || match.approved_at || null;
         existingRejectionReason = companyData.rejection_reason || match.rejection_reason || null;
@@ -280,7 +323,7 @@ export const DataStore = {
       employee_count: companyData.employee_count ?? null,
       star_rating: companyData.star_rating ?? 3,
       industry_domain: companyData.industry_domain || null,
-      status: companyData.status || 'active',
+      status: existingStatus,
       approval_status: existingApprovalStatus,
       approved_by: existingApprovedBy,
       approved_at: existingApprovedAt,
@@ -291,7 +334,16 @@ export const DataStore = {
 
     if (!isMockMode) {
       const { data, error } = await supabase.from('companies').upsert(company).select().single();
-      if (!error && data) return data as Company;
+      if (error) {
+        console.warn('Supabase company upsert check constraint notice:', error.message);
+      } else if (data) {
+        const companies = getStored<Company[]>(STORAGE_KEYS.COMPANIES, INITIAL_COMPANIES);
+        const idx = companies.findIndex(c => c.company_id === company.company_id);
+        if (idx >= 0) companies[idx] = data as Company;
+        else companies.unshift(data as Company);
+        setStored(STORAGE_KEYS.COMPANIES, companies);
+        return data as Company;
+      }
     }
 
     const companies = getStored<Company[]>(STORAGE_KEYS.COMPANIES, INITIAL_COMPANIES);
@@ -355,30 +407,77 @@ export const DataStore = {
     return true;
   },
 
-  async bulkInsertCompanies(newCompanies: Array<Omit<Company, 'company_id' | 'created_at'>>): Promise<{ inserted: number; skipped: number; reasons: string[] }> {
+  async bulkInsertCompanies(rawCompanies: any[]): Promise<{ inserted: number; skipped: number; reasons: string[] }> {
+    const existing = await this.getCompanies();
+    const existingNames = new Set(existing.map(c => c.name.toLowerCase().trim()));
+
     const toInsert: Company[] = [];
     const reasons: string[] = [];
     let skipped = 0;
 
-    for (const item of newCompanies) {
-      if (!item.name) {
+    for (const rawItem of rawCompanies) {
+      const item = rawItem as any;
+      const name = (item['name'] || item['Company Name'] || item['Company'] || item['company_name'] || '').toString().trim();
+      const industry_domain = (item['industry_domain'] || item['Industry Domain'] || item['Industry'] || '').toString().trim() || null;
+      const website_url = (item['website_url'] || item['Website URL'] || item['Website'] || '').toString().trim() || null;
+      const contact_person_name = (item['contact_person_name'] || item['Contact Person Name'] || item['Contact Person'] || '').toString().trim() || null;
+      const contact_person_mobile = (item['contact_person_mobile'] || item['Contact Person Mobile'] || item['Mobile'] || '').toString().trim() || null;
+      const address = (item['address'] || item['Company Address'] || item['Address'] || '').toString().trim() || null;
+      const rawStar = item['star_rating'] || item['Star Rating'] || item['Rating'] || item['Tier'] || 3;
+      const star_rating = Math.min(5, Math.max(1, parseInt(rawStar) || 3));
+      const rawEmp = item['employee_count'] || item['Employee Count'];
+      const employee_count = rawEmp ? parseInt(rawEmp) || null : null;
+
+      if (!name) {
         skipped++;
-        reasons.push('Row missing company name');
+        reasons.push('Row missing required company name');
         continue;
       }
 
-      toInsert.push({
-        ...item,
+      if (existingNames.has(name.toLowerCase())) {
+        skipped++;
+        reasons.push(`Duplicate company name: ${name}`);
+        continue;
+      }
+
+      existingNames.add(name.toLowerCase());
+
+      const companyRecord: Company = {
         company_id: crypto.randomUUID(),
-        status: item.status || 'active',
-        approval_status: 'draft', // Excel imported companies land as draft per spec
+        name,
+        address,
+        website_url,
+        contact_person_name,
+        contact_person_mobile,
+        map_link: null,
+        employee_count,
+        star_rating,
+        industry_domain,
+        status: 'active',
+        approval_status: 'pending_approval',
         created_at: new Date().toISOString(),
-      });
+      };
+
+      toInsert.push(companyRecord);
     }
 
     if (toInsert.length > 0) {
       if (!isMockMode) {
-        await supabase.from('companies').insert(toInsert);
+        try {
+          const { error } = await supabase.from('companies').insert(toInsert);
+          if (error) {
+            console.error('Error inserting companies into Supabase:', error);
+            const current = getStored<Company[]>(STORAGE_KEYS.COMPANIES, INITIAL_COMPANIES);
+            setStored(STORAGE_KEYS.COMPANIES, [...toInsert, ...current]);
+          } else {
+            const current = getStored<Company[]>(STORAGE_KEYS.COMPANIES, INITIAL_COMPANIES);
+            setStored(STORAGE_KEYS.COMPANIES, [...toInsert, ...current]);
+          }
+        } catch (err) {
+          console.error('Supabase companies bulk insert exception:', err);
+          const current = getStored<Company[]>(STORAGE_KEYS.COMPANIES, INITIAL_COMPANIES);
+          setStored(STORAGE_KEYS.COMPANIES, [...toInsert, ...current]);
+        }
       } else {
         const current = getStored<Company[]>(STORAGE_KEYS.COMPANIES, INITIAL_COMPANIES);
         setStored(STORAGE_KEYS.COMPANIES, [...toInsert, ...current]);

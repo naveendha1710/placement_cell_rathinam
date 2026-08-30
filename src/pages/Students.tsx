@@ -190,9 +190,9 @@ export const Students: React.FC = () => {
                   onChange={(e) => setDeptFilter(e.target.value)}
                   options={[
                     { label: 'All Departments', value: 'all' },
-                    { label: 'Computer Science', value: 'Computer Science' },
+                    { label: 'Computer Science', value: 'Computer  Science' },
                     { label: 'Information Technology', value: 'Information Technology' },
-                    { label: 'Electronics & Communication', value: 'Electronics & Communication' },
+                    { label: 'Electronics and Communication', value: 'Electronics & Communication' },
                     { label: 'Mechanical Engineering', value: 'Mechanical Engineering' },
                     { label: 'Civil Engineering', value: 'Civil Engineering' },
                     { label: 'Artificial Intelligence & Data Science', value: 'Artificial Intelligence & Data Science' },

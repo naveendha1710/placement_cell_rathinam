@@ -54,7 +54,7 @@ export interface Student {
 }
 
 export type ApprovalStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected';
-export type CompanyStatus = 'active' | 'blacklisted';
+export type CompanyStatus = 'active' | 'blacklisted' | 'paused' | 'inactive';
 
 export interface Company {
   company_id: string;

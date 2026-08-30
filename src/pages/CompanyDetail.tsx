@@ -11,7 +11,8 @@ import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { 
   Building2, ArrowLeft, Globe, MapPin, Users, Star, 
-  ShieldCheck, Briefcase, Plus, ExternalLink, Calendar, ChevronRight, Edit 
+  ShieldCheck, Briefcase, Plus, ExternalLink, Calendar, ChevronRight, Edit,
+  PauseCircle, PlayCircle, XCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -87,19 +88,6 @@ export const CompanyDetail: React.FC = () => {
         </Button>
 
         <div className="flex items-center gap-3">
-          {canApprove && company.approval_status !== 'approved' && (
-            <Button
-              size="sm"
-              onClick={async () => {
-                await DataStore.updateCompanyApproval(company.company_id, 'approved', user?.id);
-                await loadData();
-              }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
-            >
-              <ShieldCheck className="h-4 w-4" />
-              <span>Direct Approve Company</span>
-            </Button>
-          )}
           {canCreateEdit && (
             <Button size="sm" variant="outline" onClick={() => setIsEditCompanyOpen(!isEditCompanyOpen)} className="gap-1.5">
               <Edit className="h-4 w-4" />
@@ -109,10 +97,6 @@ export const CompanyDetail: React.FC = () => {
           <Badge variant={company.approval_status as any}>
             {company.approval_status.replace('_', ' ').toUpperCase()}
           </Badge>
-          <Button size="sm" variant="outline" onClick={() => setIsApprovalOpen(true)} className="gap-1.5">
-            <ShieldCheck className="h-4 w-4" />
-            <span>Workflow History</span>
-          </Button>
         </div>
       </div>
 
@@ -268,7 +252,16 @@ export const CompanyDetail: React.FC = () => {
               </div>
 
               {canCreateEdit && !isAddOfferOpen && (
-                isCompanyApproved ? (
+                !isCompanyApproved ? (
+                  <span className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded font-medium">
+                    Approve company to unlock Add Offer
+                  </span>
+                ) : company.status === 'inactive' || company.status === 'paused' ? (
+                  <span className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded font-medium flex items-center gap-1">
+                    <PauseCircle className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Company is paused. Resume company to add job offers.</span>
+                  </span>
+                ) : (
                   <Button
                     size="sm"
                     onClick={() => setIsAddOfferOpen(true)}
@@ -277,10 +270,6 @@ export const CompanyDetail: React.FC = () => {
                     <Plus className="h-4 w-4" />
                     <span>Add Job Offer</span>
                   </Button>
-                ) : (
-                  <span className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded font-medium">
-                    Approve company to unlock Add Offer
-                  </span>
                 )
               )}
             </div>
@@ -289,7 +278,7 @@ export const CompanyDetail: React.FC = () => {
               <div className="py-12 text-center text-xs text-zinc-500 space-y-2">
                 <Briefcase className="h-8 w-8 text-zinc-300 mx-auto" />
                 <p className="font-medium text-zinc-700">No job offers added for this company yet.</p>
-                {isCompanyApproved && canCreateEdit && !isAddOfferOpen && (
+                {isCompanyApproved && company.status !== 'inactive' && company.status !== 'paused' && canCreateEdit && !isAddOfferOpen && (
                   <Button size="sm" variant="outline" onClick={() => setIsAddOfferOpen(true)}>
                     Create First Job Offer
                   </Button>
@@ -345,6 +334,112 @@ export const CompanyDetail: React.FC = () => {
                 ))}
               </div>
             )}
+          </Card>
+
+          {/* Company Approval Action Controls (Moved below Job Offers & Drives card) */}
+          <Card className="p-5 bg-white border-zinc-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-zinc-700" />
+                  <span>Company Approval Management</span>
+                </h3>
+                <p className="text-xs text-zinc-500">Review approval status, submission history, and administrator actions.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant={company.approval_status as any}>
+                  {company.approval_status.replace('_', ' ').toUpperCase()}
+                </Badge>
+                {company.status === 'inactive' && (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                    PAUSED
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-zinc-100">
+              {/* Actions for Pending Approval */}
+              {canApprove && company.approval_status === 'pending_approval' && (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      await DataStore.updateCompanyApproval(company.company_id, 'approved', user?.id);
+                      await loadData();
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 font-bold"
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    <span>Approve Company</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      await DataStore.updateCompanyApproval(company.company_id, 'rejected', user?.id, 'Rejected by Admin');
+                      await loadData();
+                    }}
+                    className="border-rose-300 text-rose-700 hover:bg-rose-50 gap-1.5 font-bold"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    <span>Reject Company</span>
+                  </Button>
+                </>
+              )}
+
+              {/* Actions for Approved Companies: Pause / Resume options */}
+              {canApprove && company.approval_status === 'approved' && (
+                <>
+                  {company.status === 'active' ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        await DataStore.saveCompany({ ...company, status: 'inactive' });
+                        await loadData();
+                      }}
+                      className="border-amber-300 text-amber-800 hover:bg-amber-50 gap-1.5 font-bold"
+                    >
+                      <PauseCircle className="h-4 w-4" />
+                      <span>Pause Company</span>
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        await DataStore.saveCompany({ ...company, status: 'active' });
+                        await loadData();
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 font-bold"
+                    >
+                      <PlayCircle className="h-4 w-4" />
+                      <span>Resume Company</span>
+                    </Button>
+                  )}
+                </>
+              )}
+
+              {/* Actions for Rejected Companies */}
+              {canApprove && company.approval_status === 'rejected' && (
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    await DataStore.updateCompanyApproval(company.company_id, 'approved', user?.id);
+                    await loadData();
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 font-bold"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  <span>Re-Approve Company</span>
+                </Button>
+              )}
+
+              <Button size="sm" variant="outline" onClick={() => setIsApprovalOpen(true)} className="gap-1.5">
+                <ShieldCheck className="h-4 w-4" />
+                <span>View Full Workflow History</span>
+              </Button>
+            </div>
           </Card>
         </div>
       </div>

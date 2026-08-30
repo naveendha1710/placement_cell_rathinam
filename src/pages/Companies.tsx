@@ -301,16 +301,6 @@ export const Companies: React.FC = () => {
                             >
                               <Eye className="h-4 w-4" />
                             </button>
-                            <button
-                              onClick={() => {
-                                setCompanyForApproval(comp);
-                                setIsApprovalModalOpen(true);
-                              }}
-                              className="p-1 rounded hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
-                              title="Approval Workflow"
-                            >
-                              <ShieldCheck className="h-4 w-4" />
-                            </button>
                             {canCreateEdit && (
                               <button
                                 onClick={() => {
