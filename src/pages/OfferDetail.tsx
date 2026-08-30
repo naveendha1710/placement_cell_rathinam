@@ -401,46 +401,35 @@ export const OfferDetail: React.FC = () => {
 
 
 
-      {/* Registered Candidates Action Card */}
-      <Card className="p-6 bg-white border border-zinc-200 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-zinc-100 rounded-lg text-zinc-900 border border-zinc-200">
-              <Users className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-zinc-900">Student Registration</h3>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-zinc-900 text-white">
-                  {applications.length} {applications.length === 1 ? 'Candidate' : 'Candidates'}
-                </span>
+      {/* Student Registration Card — ONLY shown in 'hot' stage */}
+      {offer.offer_status === 'hot' && (
+        <Card className="p-6 bg-white border border-zinc-200 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-zinc-100 rounded-lg text-zinc-900 border border-zinc-200">
+                <Users className="h-6 w-6" />
               </div>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                View registered candidate matrix, AI match scores, round-wise status tracking, & placement selections on a dedicated page.
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-zinc-900">Student Registration</h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-zinc-900 text-white">
+                    {applications.length} {applications.length === 1 ? 'Candidate' : 'Candidates'}
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  View registered candidate matrix, AI match scores, round-wise status tracking, & placement selections on a dedicated page.
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            {canCreateEdit && (offer.offer_status === 'drive_completed' || offer.offer_status === 'drive_closed') && (
-              <Button
-                size="sm"
-                onClick={() => setIsPlacementsModalOpen(true)}
-                className="gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-xs"
-              >
-                <Award className="h-4 w-4" />
-                <span>{offer.offer_status === 'drive_closed' ? 'View Placed Candidates' : 'Manage Placed Candidates'}</span>
-              </Button>
-            )}
+            <div className="flex items-center gap-3 shrink-0">
+              {canCreateEdit && (
+                <Button size="sm" variant="outline" onClick={() => setIsRegisterOpen(true)} className="gap-1.5 bg-white">
+                  <UserPlus className="h-4 w-4" />
+                  <span>Register Students</span>
+                </Button>
+              )}
 
-            {canCreateEdit && offer.offer_status !== 'drive_completed' && offer.offer_status !== 'drive_closed' && (
-              <Button size="sm" variant="outline" onClick={() => setIsRegisterOpen(true)} className="gap-1.5 bg-white">
-                <UserPlus className="h-4 w-4" />
-                <span>Register Students</span>
-              </Button>
-            )}
-
-            {offer.offer_status !== 'drive_completed' && offer.offer_status !== 'drive_closed' && (
               <Button
                 size="sm"
                 onClick={() => navigate(`/offers/${offer.offer_id}/candidates`)}
@@ -449,10 +438,47 @@ export const OfferDetail: React.FC = () => {
                 <span>View Registration Matrix</span>
                 <ArrowRight className="h-4 w-4" />
               </Button>
-            )}
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
+
+      {/* Placed Candidates Summary Card — shown in 'drive_completed' and 'drive_closed' stages */}
+      {(offer.offer_status === 'drive_completed' || offer.offer_status === 'drive_closed') && (
+        <Card className="p-6 bg-white border border-zinc-200 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-emerald-50 rounded-lg text-emerald-700 border border-emerald-200">
+                <Award className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-zinc-900">Placed Candidates & Drive Outcomes</h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-700 text-white">
+                    {applications.filter(a => a.final_status === 'selected' || a.offer_accepted).length} Placed
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {offer.offer_status === 'drive_closed'
+                    ? 'Review confirmed placed candidates for this closed & archived recruitment drive.'
+                    : 'Select and confirm students who received job offers from this recruitment drive.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <Button
+                size="sm"
+                onClick={() => setIsPlacementsModalOpen(true)}
+                className="gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-xs"
+              >
+                <Award className="h-4 w-4" />
+                <span>{offer.offer_status === 'drive_closed' ? 'View Placed Candidates' : 'Manage Placed Candidates'}</span>
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Approval Workflow Modal */}
       <OfferApprovalModal

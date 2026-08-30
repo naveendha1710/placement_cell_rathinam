@@ -604,9 +604,13 @@ export const OfferStagePromoteInlineForm: React.FC<OfferStagePromoteInlineFormPr
                           <Plus className="h-3.5 w-3.5" />
                           <span>{uploadingJd ? 'Uploading JD...' : 'Upload JD File'}</span>
                           <input
+                            key={`jd_file_input_${activeRoleIndex}_${(currentRole.jd_files || []).length}`}
                             type="file"
                             accept=".pdf,.doc,.docx,.txt"
-                            onChange={(e) => handleFileUpload(activeRoleIndex, e.target.files)}
+                            onChange={(e) => {
+                              handleFileUpload(activeRoleIndex, e.target.files);
+                              e.target.value = '';
+                            }}
                             disabled={uploadingJd}
                             className="hidden"
                           />
