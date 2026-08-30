@@ -10,7 +10,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { 
   Calendar, MapPin, Search, 
-  FileText, CheckCircle2, UserCheck, AlertCircle, GraduationCap, XCircle 
+  FileText, CheckCircle2, UserCheck, AlertCircle, GraduationCap, XCircle, Briefcase 
 } from 'lucide-react';
 
 const DEPARTMENTS = [
@@ -118,6 +118,7 @@ export const StudentRegisterPage: React.FC = () => {
   const [resumeFile, setResumeFile] = useState('');
   
   const [existingStudent, setExistingStudent] = useState<Student | null>(null);
+  const [appliedRoleId, setAppliedRoleId] = useState<string>('');
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [hasReadJd, setHasReadJd] = useState(false);
   const [searchingRoll, setSearchingRoll] = useState(false);
@@ -134,6 +135,9 @@ export const StudentRegisterPage: React.FC = () => {
         const offers = await DataStore.getOffers();
         const match = offers.find(o => o.offer_id === id);
         setOffer(match || null);
+        if (match?.job_roles && match.job_roles.length > 0) {
+          setAppliedRoleId(match.job_roles[0].role_id);
+        }
       } finally {
         setLoadingOffer(false);
       }
@@ -224,7 +228,13 @@ export const StudentRegisterPage: React.FC = () => {
       const savedStudent = await DataStore.saveStudent(studentPayload);
 
       // 2. Register Student for the Drive
-      await DataStore.registerStudentsForOffer(offer.offer_id, [savedStudent.student_id]);
+      const selectedRole = offer.job_roles?.find(r => r.role_id === appliedRoleId) || offer.job_roles?.[0];
+      await DataStore.registerStudentsForOffer(
+        offer.offer_id, 
+        [savedStudent.student_id],
+        selectedRole?.role_id,
+        selectedRole?.role_title
+      );
       setSubmittedSuccess(true);
     } catch (err: any) {
       console.error(err);
@@ -272,9 +282,6 @@ export const StudentRegisterPage: React.FC = () => {
           </p>
 
           <div className="flex flex-wrap items-center gap-4 text-xs pt-3 text-zinc-700">
-            <span className="font-bold text-zinc-900 bg-zinc-100 px-2.5 py-1 rounded border border-zinc-200">
-              {offer.ctc_lpa ? `${offer.ctc_lpa} LPA Package` : 'CTC Package TBD'}
-            </span>
             <span className="flex items-center gap-1 font-medium text-zinc-600">
               <Calendar className="h-3.5 w-3.5 text-zinc-500" />
               {offer.drive_date || offer.tentative_drive_date || 'Date TBD'}
@@ -446,6 +453,24 @@ export const StudentRegisterPage: React.FC = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Job Role Position Selector */}
+            {offer?.job_roles && offer.job_roles.length > 0 && (
+              <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1.5">
+                <label className="text-xs font-bold text-zinc-900 block flex items-center gap-1.5">
+                  <Briefcase className="h-4 w-4 text-zinc-800" />
+                  <span>Applying Position / Job Role *</span>
+                </label>
+                <Select
+                  value={appliedRoleId}
+                  onChange={(e) => setAppliedRoleId(e.target.value)}
+                  options={offer.job_roles.map(r => ({
+                    label: `${r.role_title} — ${r.ctc_lpa ? `₹${r.ctc_lpa} LPA Package` : 'Package TBD'}`,
+                    value: r.role_id,
+                  }))}
+                />
+              </div>
+            )}
+
             {/* Registration / Roll Number Lookup */}
             <div>
               <label className="text-xs font-semibold text-zinc-900 block mb-1">

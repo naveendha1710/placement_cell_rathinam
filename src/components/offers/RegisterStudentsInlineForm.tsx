@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { DataStore } from '../../lib/store';
-import { Student } from '../../types/database';
+import { Student, JobRole } from '../../types/database';
 import { useAuth } from '../../context/AuthContext';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Search, X, CheckSquare, Square } from 'lucide-react';
+import { Search, X, CheckSquare, Square, Briefcase } from 'lucide-react';
 
 interface RegisterStudentsInlineFormProps {
   offerId: string;
@@ -21,6 +21,8 @@ export const RegisterStudentsInlineForm: React.FC<RegisterStudentsInlineFormProp
 }) => {
   const { departmentScope } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
+  const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
+  const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [registeredIds, setRegisteredIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -31,6 +33,13 @@ export const RegisterStudentsInlineForm: React.FC<RegisterStudentsInlineFormProp
     async function loadCandidates() {
       setLoading(true);
       try {
+        const offers = await DataStore.getOffers();
+        const off = offers.find(o => o.offer_id === offerId);
+        if (off?.job_roles && off.job_roles.length > 0) {
+          setJobRoles(off.job_roles);
+          setSelectedRoleId(off.job_roles[0].role_id);
+        }
+
         let allStudents = await DataStore.getStudents();
         const existingApps = await DataStore.getApplications(offerId);
         const alreadyRegistered = new Set(existingApps.map(a => a.student_id));
@@ -75,7 +84,13 @@ export const RegisterStudentsInlineForm: React.FC<RegisterStudentsInlineFormProp
     if (selectedIds.size === 0) return;
     setSubmitting(true);
     try {
-      await DataStore.registerStudentsForOffer(offerId, Array.from(selectedIds));
+      const activeRole = jobRoles.find(r => r.role_id === selectedRoleId) || jobRoles[0];
+      await DataStore.registerStudentsForOffer(
+        offerId,
+        Array.from(selectedIds),
+        activeRole?.role_id,
+        activeRole?.role_title
+      );
       onSuccess();
       onClose();
     } finally {
@@ -107,6 +122,35 @@ export const RegisterStudentsInlineForm: React.FC<RegisterStudentsInlineFormProp
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {/* Multi-Role Position Selector Bar */}
+        {jobRoles.length > 1 && (
+          <div className="flex items-center gap-3 bg-zinc-100 p-3 rounded-lg border border-zinc-200 shrink-0">
+            <div className="flex items-center gap-1.5 font-bold text-zinc-900 text-xs">
+              <Briefcase className="h-4 w-4 text-zinc-800" />
+              <span>Target Job Role for Registration:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {jobRoles.map((r) => {
+                const isSelected = r.role_id === selectedRoleId;
+                return (
+                  <button
+                    key={r.role_id}
+                    type="button"
+                    onClick={() => setSelectedRoleId(r.role_id)}
+                    className={`px-3 py-1 text-xs font-bold rounded-md border transition-all ${
+                      isSelected
+                        ? 'bg-zinc-900 text-white border-zinc-900 shadow-xs'
+                        : 'bg-white text-zinc-800 border-zinc-300 hover:bg-zinc-50'
+                    }`}
+                  >
+                    {r.role_title} ({r.ctc_lpa ? `${r.ctc_lpa} LPA` : 'TBD'})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-between gap-4 shrink-0">
           <div className="relative flex-1">

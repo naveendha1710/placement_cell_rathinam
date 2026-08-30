@@ -888,7 +888,7 @@ export const DataStore = {
     return apps;
   },
 
-  async registerStudentsForOffer(offer_id: string, studentIds: string[]): Promise<number> {
+  async registerStudentsForOffer(offer_id: string, studentIds: string[], role_id?: string, role_title?: string): Promise<number> {
     const existing = await this.getApplications(offer_id);
     const existingStudentIds = new Set(existing.map(a => a.student_id));
     const now = new Date().toISOString();
@@ -900,6 +900,8 @@ export const DataStore = {
           application_id: crypto.randomUUID(),
           offer_id,
           student_id: sid,
+          applied_role_id: role_id || null,
+          applied_role_title: role_title || null,
           applied_at: now,
           final_status: 'applied',
           offer_accepted: false,

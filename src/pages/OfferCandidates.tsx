@@ -238,10 +238,15 @@ export const OfferCandidates: React.FC = () => {
                       <td className="py-3 px-4">
                         <button
                           onClick={() => navigate(`/students/${app.student_id}`)}
-                          className="font-bold text-zinc-900 hover:underline text-left"
+                          className="font-bold text-zinc-900 hover:underline text-left block"
                         >
                           {app.student?.name || 'N/A'}
                         </button>
+                        {app.applied_role_title && (
+                          <span className="inline-block mt-0.5 text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
+                            {app.applied_role_title}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-zinc-700">{app.student?.department || 'N/A'}</td>
                       <td className="py-3 px-4">

@@ -181,6 +181,8 @@ export interface DriveApplication {
   application_id: string;
   offer_id: string;
   student_id: string;
+  applied_role_id?: string | null;
+  applied_role_title?: string | null;
   applied_at: string;
   match_score?: number | null;
   match_explanation?: string | null;
