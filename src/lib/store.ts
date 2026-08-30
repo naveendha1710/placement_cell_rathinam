@@ -594,9 +594,46 @@ export const DataStore = {
   // OFFERS
   async getOffers(): Promise<Offer[]> {
     let offers: Offer[] = [];
+    const profiles = await this.getProfiles();
+
     if (!isMockMode) {
-      const { data, error } = await supabase.from('offers').select('*, company:companies(*)').order('created_at', { ascending: false });
-      if (!error && data) offers = data as Offer[];
+      const { data, error } = await supabase
+        .from('offers')
+        .select('*, company:companies(*), stage_history:offer_stage_history(*, updated_by_profile:profiles(id, name, email, role)), job_roles:offer_job_roles(*)')
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        offers = data.map(o => ({
+          ...o,
+          stage_history: (o.stage_history || []).map((h: any) => ({
+            id: h.id,
+            offer_id: h.offer_id,
+            stage: h.stage,
+            timestamp: h.timestamp || h.created_at,
+            updated_by_id: h.updated_by || h.updated_by_id,
+            updated_by_name: h.updated_by_profile?.name || h.updated_by_name || 'Placement Coordinator',
+            notes: h.notes,
+          })),
+          job_roles: (o.job_roles && o.job_roles.length > 0)
+            ? o.job_roles.map((r: any) => ({
+                role_id: r.role_id,
+                offer_id: r.offer_id,
+                role_title: r.role_title,
+                ctc_lpa: r.ctc_lpa,
+                base_lpa: r.base_lpa,
+                vacancies: r.vacancies,
+                eligible_departments: r.eligible_departments || [],
+                eligibility_criteria: {
+                  min_cgpa: r.min_cgpa,
+                  max_backlogs: r.max_backlogs,
+                  allowed_batches: r.allowed_batches || ['T', 'O', 'S', 'A', 'X'],
+                },
+                jd_text: r.jd_text || '',
+                jd_files: r.jd_files || [],
+                extraction_id: r.extraction_id || null,
+              }))
+            : (o.job_roles || []),
+        })) as Offer[];
+      }
     } else {
       const rawOffers = getStored<Offer[]>(STORAGE_KEYS.OFFERS, INITIAL_OFFERS);
       const companies = getStored<Company[]>(STORAGE_KEYS.COMPANIES, INITIAL_COMPANIES);
@@ -605,7 +642,11 @@ export const DataStore = {
         company: companies.find(c => c.company_id === o.company_id),
       }));
     }
-    return offers;
+
+    return offers.map(o => ({
+      ...o,
+      creator_profile: o.created_by ? profiles.find(p => p.id === o.created_by) || null : null,
+    }));
   },
 
   async saveOffer(offerData: Partial<Offer> & { company_id: string }): Promise<Offer> {
@@ -616,7 +657,9 @@ export const DataStore = {
     let existingApprovedBy = offerData.approved_by || null;
     let existingApprovedAt = offerData.approved_at || null;
     let existingRejectionReason = offerData.rejection_reason || null;
+    let existingCreatedBy = offerData.created_by || null;
 
+    let existingHistory = offerData.stage_history || [];
     if (offerData.offer_id) {
       const existingList = await this.getOffers();
       const match = existingList.find(o => o.offer_id === offerData.offer_id);
@@ -625,29 +668,64 @@ export const DataStore = {
         existingApprovedBy = offerData.approved_by || match.approved_by || null;
         existingApprovedAt = offerData.approved_at || match.approved_at || null;
         existingRejectionReason = offerData.rejection_reason || match.rejection_reason || null;
+        existingCreatedBy = offerData.created_by || match.created_by || null;
+        if (!offerData.stage_history && match.stage_history) {
+          existingHistory = match.stage_history;
+        }
       }
     }
+
+    if (existingHistory.length === 0) {
+      existingHistory = [
+        {
+          id: crypto.randomUUID(),
+          offer_id,
+          stage: offerData.offer_status || 'cold',
+          timestamp: now,
+          updated_by_id: offerData.created_by || 'system',
+          notes: offerData.remarks || 'Placement lead created in Cold stage.',
+        }
+      ];
+    }
+
+    // Auto-sync top level fields from first job role if job_roles provided
+    const primaryRole = (offerData.job_roles && offerData.job_roles.length > 0) ? offerData.job_roles[0] : null;
 
     const offer: Offer = {
       offer_id,
       company_id: offerData.company_id,
-      jd_text: offerData.jd_text || null,
-      jd_files: offerData.jd_files || [],
-      eligible_departments: offerData.eligible_departments || [],
-      ctc_lpa: offerData.ctc_lpa ?? null,
-      base_lpa: offerData.base_lpa ?? null,
-      eligibility_criteria: offerData.eligibility_criteria || {},
+      offer_status: offerData.offer_status || 'cold',
+      approval_status: existingApprovalStatus,
+
+      // Cold & Warm tracking
+      remarks: offerData.remarks || null,
+      tentative_drive_date: offerData.tentative_drive_date || null,
+      contact_person_name: offerData.contact_person_name || null,
+      expected_openings: offerData.expected_openings ?? null,
+
+      // Hot Stage Details
       drive_date: offerData.drive_date || null,
       job_location: offerData.job_location || null,
       drive_mode: offerData.drive_mode || 'on_campus',
-      status: offerData.status || 'drafted',
-      offer_status: offerData.offer_status || 'cold',
-      approval_status: existingApprovalStatus,
+
+      // Multi-Role Support & Audit Trail History
+      job_roles: offerData.job_roles || [],
+      stage_history: existingHistory,
+
+      // Fallback top level fields
+      jd_text: offerData.jd_text ?? primaryRole?.jd_text ?? null,
+      jd_files: offerData.jd_files ?? primaryRole?.jd_files ?? [],
+      eligible_departments: offerData.eligible_departments ?? primaryRole?.eligible_departments ?? [],
+      ctc_lpa: offerData.ctc_lpa ?? primaryRole?.ctc_lpa ?? null,
+      base_lpa: offerData.base_lpa ?? primaryRole?.base_lpa ?? null,
+      eligibility_criteria: offerData.eligibility_criteria ?? primaryRole?.eligibility_criteria ?? {},
+
       approved_by: existingApprovedBy,
       approved_at: existingApprovedAt,
       rejection_reason: existingRejectionReason,
-      created_by: offerData.created_by || null,
+      created_by: existingCreatedBy,
       created_at: offerData.created_at || now,
+      updated_at: now,
     };
 
     // Auto-Upsert Job Description Extraction in document_extractions table
@@ -661,8 +739,69 @@ export const DataStore = {
     }
 
     if (!isMockMode) {
-      const { data, error } = await supabase.from('offers').upsert(offer).select().single();
-      if (!error && data) return data as Offer;
+      // Strip non-column joined properties & transient fields before sending to Supabase 'offers' table
+      const { creator_profile, company, stage_history, job_roles, updated_at, ...dbPayload } = offer;
+      
+      // Ensure created_by is a valid UUID or null
+      if (dbPayload.created_by === 'system' || !dbPayload.created_by) {
+        dbPayload.created_by = null;
+      }
+
+      const { data, error } = await supabase.from('offers').upsert(dbPayload).select().single();
+      if (error) {
+        console.error('Error saving offer to Supabase:', error);
+        alert(`Supabase DB Error: ${error.message}`);
+        throw error;
+      }
+
+      // Save stage history records to separate relational public.offer_stage_history table
+      if (existingHistory && existingHistory.length > 0) {
+        const historyRows = existingHistory.map(h => ({
+          id: (h.id && h.id.length > 20) ? h.id : crypto.randomUUID(),
+          offer_id: offer.offer_id,
+          stage: h.stage,
+          timestamp: h.timestamp || now,
+          updated_by: (h.updated_by_id && h.updated_by_id !== 'system' && h.updated_by_id.length > 20) ? h.updated_by_id : null,
+          notes: h.notes || null,
+        }));
+
+        const { error: histErr } = await supabase.from('offer_stage_history').upsert(historyRows);
+        if (histErr) {
+          console.warn('Note: Failed to sync stage history table:', histErr.message);
+        }
+      }
+
+      // Save configured job roles to separate relational public.offer_job_roles table
+      if (offer.job_roles && offer.job_roles.length > 0) {
+        const roleRows = offer.job_roles.map(r => ({
+          role_id: (r.role_id && r.role_id.length > 20) ? r.role_id : crypto.randomUUID(),
+          offer_id: offer.offer_id,
+          role_title: r.role_title,
+          ctc_lpa: r.ctc_lpa,
+          base_lpa: r.base_lpa,
+          vacancies: r.vacancies ?? 1,
+          eligible_departments: r.eligible_departments || [],
+          allowed_batches: r.eligibility_criteria?.allowed_batches || ['T', 'O', 'S', 'A', 'X'],
+          min_cgpa: r.eligibility_criteria?.min_cgpa,
+          max_backlogs: r.eligibility_criteria?.max_backlogs,
+          jd_text: r.jd_text,
+          jd_files: r.jd_files || [],
+          extraction_id: r.extraction_id || null,
+        }));
+
+        const { error: roleErr } = await supabase.from('offer_job_roles').upsert(roleRows);
+        if (roleErr) {
+          console.warn('Note: Failed to sync offer_job_roles table (run create_offer_job_roles_table.sql if table is missing):', roleErr.message);
+        }
+      }
+
+      return {
+        ...(data as Offer),
+        creator_profile,
+        company,
+        stage_history: existingHistory,
+        job_roles: offer.job_roles,
+      };
     }
 
     const offers = getStored<Offer[]>(STORAGE_KEYS.OFFERS, INITIAL_OFFERS);

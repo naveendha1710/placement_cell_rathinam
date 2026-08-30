@@ -20,6 +20,7 @@ export const Offers: React.FC = () => {
 
   // Filters & Pagination
   const [search, setSearch] = useState('');
+  const [stageFilter, setStageFilter] = useState('all');
   const [approvalFilter, setApprovalFilter] = useState('all');
   const [modeFilter, setModeFilter] = useState('all');
   const [ctcFilter, setCtcFilter] = useState('all');
@@ -50,7 +51,7 @@ export const Offers: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, approvalFilter, modeFilter, ctcFilter]);
+  }, [search, stageFilter, approvalFilter, modeFilter, ctcFilter]);
 
   const handleSaveOffer = async (offerData: Partial<Offer> & { company_id: string }) => {
     await DataStore.saveOffer(offerData);
@@ -59,7 +60,7 @@ export const Offers: React.FC = () => {
   };
 
   const handleDeleteOffer = async (id: string) => {
-    if (confirm('Delete this job offer?')) {
+    if (confirm('Are you sure you want to delete this job offer record?')) {
       await DataStore.deleteOffer(id);
       await loadOffers();
     }
@@ -191,17 +192,29 @@ export const Offers: React.FC = () => {
         <>
           {/* Filters */}
           <Card className="p-4 bg-white border-zinc-200">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div className="relative">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div className="relative md:col-span-1">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
                 <input
                   type="text"
-                  placeholder="Search by company or location..."
+                  placeholder="Search company, location, creator..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
                 />
               </div>
+
+              <Select
+                value={stageFilter}
+                onChange={(e) => setStageFilter(e.target.value)}
+                options={[
+                  { label: 'All Pipeline Stages', value: 'all' },
+                  { label: 'Cold Leads Only', value: 'cold' },
+                  { label: 'Warm Discussions', value: 'warm' },
+                  { label: 'Hot Confirmed Drives', value: 'hot' },
+                  { label: 'Completed Drives', value: 'drive_completed' },
+                ]}
+              />
 
               <Select
                 value={approvalFilter}
@@ -221,9 +234,8 @@ export const Offers: React.FC = () => {
                 options={[
                   { label: 'All Drive Modes', value: 'all' },
                   { label: 'On Campus', value: 'on_campus' },
-                  { label: 'Off Campus', value: 'off_campus' },
                   { label: 'Virtual Drive', value: 'virtual' },
-                  { label: 'Pool Drive', value: 'pool_drive' },
+                  { label: 'Pooled Drive', value: 'pooled' },
                 ]}
               />
 
@@ -254,9 +266,9 @@ export const Offers: React.FC = () => {
                     <tr>
                       <th className="py-3 px-4">Company Name</th>
                       <th className="py-3 px-4">Pipeline Stage</th>
-                      <th className="py-3 px-4">CTC & Package</th>
+                      <th className="py-3 px-4">Job Roles / CTC</th>
                       <th className="py-3 px-4">Drive Date & Location</th>
-                      <th className="py-3 px-4">Mode</th>
+                      <th className="py-3 px-4">Created By</th>
                       <th className="py-3 px-4">Approval Status</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
@@ -271,8 +283,10 @@ export const Offers: React.FC = () => {
                         'bg-blue-100 text-blue-800 border-blue-300';
                       const stageLabel = 
                         stage === 'drive_completed' ? 'Drive Completed' :
-                        stage === 'hot' ? 'Hot' :
-                        stage === 'warm' ? 'Warm' : 'Cold';
+                        stage === 'hot' ? 'Hot Drive' :
+                        stage === 'warm' ? 'Warm Lead' : 'Cold Lead';
+
+                      const rolesCount = off.job_roles?.length || (off.ctc_lpa ? 1 : 0);
 
                       return (
                         <tr key={off.offer_id} className="hover:bg-zinc-50 transition-colors">
@@ -290,18 +304,27 @@ export const Offers: React.FC = () => {
                             </div>
                           </td>
                           <td className="py-3 px-4">
-                            <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded-md border ${stageBadge}`}>
+                            <span className={`inline-block px-2.5 py-0.5 text-[11px] font-extrabold rounded-md border ${stageBadge}`}>
                               {stageLabel}
                             </span>
                           </td>
-                          <td className="py-3 px-4 font-mono font-bold text-zinc-900">
-                            {off.ctc_lpa ? `${off.ctc_lpa} LPA` : 'TBD'}
+                          <td className="py-3 px-4">
+                            <div className="space-y-0.5">
+                              <span className="font-mono font-bold text-zinc-900 block">
+                                {off.ctc_lpa ? `${off.ctc_lpa} LPA` : 'TBD'}
+                              </span>
+                              {rolesCount > 0 && (
+                                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200">
+                                  {rolesCount} {rolesCount === 1 ? 'Role' : 'Roles'} Configured
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3 px-4">
                             <div className="space-y-0.5">
                               <div className="flex items-center gap-1 font-medium text-zinc-900">
                                 <Calendar className="h-3 w-3 text-zinc-500" />
-                                <span>{off.drive_date || 'TBD'}</span>
+                                <span>{off.drive_date || off.tentative_drive_date || 'TBD'}</span>
                               </div>
                               <div className="flex items-center gap-1 text-[11px] text-zinc-500">
                                 <MapPin className="h-3 w-3 text-zinc-400" />
@@ -309,8 +332,15 @@ export const Offers: React.FC = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="py-3 px-4 font-semibold text-zinc-800 uppercase text-[10px]">
-                            {off.drive_mode?.replace('_', ' ')}
+                          <td className="py-3 px-4">
+                            {off.creator_profile ? (
+                              <div className="text-xs">
+                                <span className="font-semibold text-zinc-900 block">{off.creator_profile.name}</span>
+                                <span className="text-[10px] text-zinc-500 uppercase font-medium">{off.creator_profile.role.replace('_', ' ')}</span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-zinc-400 italic">System / Admin</span>
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <button

@@ -94,7 +94,6 @@ export interface CompanyHrContact {
 }
 
 export type DriveMode = 'on_campus' | 'virtual' | 'pooled';
-export type OfferDriveStatus = 'drafted' | 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
 export type OfferStatus = 'cold' | 'warm' | 'hot' | 'drive_completed';
 
 export interface EligibilityCriteria {
@@ -102,28 +101,69 @@ export interface EligibilityCriteria {
   max_backlogs?: number;
   min_10th_pct?: number;
   min_12th_pct?: number;
+  allowed_batches?: StudentBatch[];
+}
+
+export interface JobRole {
+  role_id: string;
+  offer_id?: string;
+  role_title: string;
+  ctc_lpa?: number | null;
+  base_lpa?: number | null;
+  eligible_departments?: string[] | null;
+  eligibility_criteria?: EligibilityCriteria | null;
+  jd_text?: string | null;
+  jd_files?: string[] | null;
+  vacancies?: number | null;
+  extraction_id?: string | null;
+}
+
+export interface StageHistoryEntry {
+  id: string;
+  offer_id?: string;
+  stage: OfferStatus;
+  timestamp: string;
+  updated_by_id: string;
+  updated_by_name?: string;
+  notes?: string | null;
 }
 
 export interface Offer {
   offer_id: string;
   company_id: string;
+  offer_status: OfferStatus; // 'cold' | 'warm' | 'hot' | 'drive_completed'
+  approval_status: ApprovalStatus;
+  
+  // Cold & Warm Stage Tracking
+  remarks?: string | null;
+  tentative_drive_date?: string | null;
+  contact_person_name?: string | null;
+  expected_openings?: number | null;
+  
+  // Hot Stage Details
+  drive_date?: string | null;
+  job_location?: string | null;
+  drive_mode?: DriveMode | null;
+  
+  // Multi-Role Support & Audit Trail History
+  job_roles?: JobRole[] | null;
+  stage_history?: StageHistoryEntry[] | null;
+  
+  // Backward-compatibility fallbacks
   jd_text?: string | null;
   jd_files?: string[] | null;
   eligible_departments?: string[] | null;
   ctc_lpa?: number | null;
   base_lpa?: number | null;
   eligibility_criteria?: EligibilityCriteria | null;
-  drive_date?: string | null;
-  job_location?: string | null;
-  drive_mode?: DriveMode | null;
-  status: OfferDriveStatus;
-  offer_status?: OfferStatus | null;
-  approval_status: ApprovalStatus;
+
   approved_by?: string | null;
   approved_at?: string | null;
   rejection_reason?: string | null;
   created_by?: string | null;
+  creator_profile?: Profile | null;
   created_at: string;
+  updated_at?: string;
 
   // Joined metadata
   company?: Company;

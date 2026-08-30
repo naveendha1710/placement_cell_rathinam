@@ -31,6 +31,7 @@ interface EligibilityCheckResult {
 function checkEligibility(
   student: {
     department: string;
+    batch?: string | null;
     ug_cgpa?: number | null;
     sslc_percentage?: number | null;
     hsc_percentage?: number | null;
@@ -83,6 +84,14 @@ function checkEligibility(
     const hsc = student.hsc_percentage ?? 0;
     if (hsc < crit.min_12th_pct) {
       reasons.push(`12th (HSC) % (${hsc}%) is below minimum required of ${crit.min_12th_pct}%`);
+    }
+  }
+
+  // 6. Allowed Student Batches Check
+  if (crit.allowed_batches && crit.allowed_batches.length > 0) {
+    const studentBatch = student.batch || 'A';
+    if (!crit.allowed_batches.includes(studentBatch as any)) {
+      reasons.push(`Student batch (Batch ${studentBatch}) is not in eligible batches (${crit.allowed_batches.map(b => `Batch ${b}`).join(', ')})`);
     }
   }
 
@@ -173,6 +182,7 @@ export const StudentRegisterPage: React.FC = () => {
   // Eligibility Evaluation
   const eligibility = offer ? checkEligibility({
     department,
+    batch: existingStudent?.batch ?? 'A',
     ug_cgpa: existingStudent?.ug_cgpa ?? null,
     sslc_percentage: existingStudent?.sslc_percentage ?? null,
     hsc_percentage: existingStudent?.hsc_percentage ?? null,

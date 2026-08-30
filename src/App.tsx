@@ -12,6 +12,7 @@ import { Companies } from './pages/Companies';
 import { CompanyDetail } from './pages/CompanyDetail';
 import { Offers } from './pages/Offers';
 import { OfferDetail } from './pages/OfferDetail';
+import { OfferCandidates } from './pages/OfferCandidates';
 import { StudentRegisterPage } from './pages/StudentRegisterPage';
 import { UserManagement } from './pages/UserManagement';
 import { Reports } from './pages/Reports';
@@ -37,6 +38,7 @@ export const App: React.FC = () => {
               <Route path="/companies/:id" element={<CompanyDetail />} />
               <Route path="/offers" element={<Offers />} />
               <Route path="/offers/:id" element={<OfferDetail />} />
+              <Route path="/offers/:id/candidates" element={<OfferCandidates />} />
 
               {/* Reports Route (Hidden for data_entry) */}
               <Route element={<ProtectedRoute allowedRoles={['super_admin', 'placement_coordinator', 'report_viewer', 'dept_coordinator']} />}>
