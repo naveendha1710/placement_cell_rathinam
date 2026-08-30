@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DataStore } from '../lib/store';
-import { Offer, Student } from '../types/database';
+import { Offer, Student, DriveApplication } from '../types/database';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
@@ -30,36 +30,40 @@ interface EligibilityCheckResult {
 
 function checkEligibility(
   student: {
-    department: string;
-    batch?: string | null;
+    department?: string;
+    batch?: string;
     ug_cgpa?: number | null;
     sslc_percentage?: number | null;
     hsc_percentage?: number | null;
     backlogs_count?: number | null;
   },
-  offer: Offer
-): EligibilityCheckResult {
+  offer: Offer,
+  selectedRoleId?: string
+): { isEligible: boolean; reasons: string[] } {
   const reasons: string[] = [];
+  const selectedRole = offer.job_roles?.find(r => r.role_id === selectedRoleId) || offer.job_roles?.[0];
+
+  const eligibleDepts = selectedRole?.eligible_departments || offer.eligible_departments;
+  const crit = selectedRole?.eligibility_criteria || offer.eligibility_criteria || {};
+  const roleTitle = selectedRole?.role_title || 'Selected Position';
 
   // 1. Department Check
-  if (offer.eligible_departments && offer.eligible_departments.length > 0) {
-    const isDeptEligible = offer.eligible_departments.some(
+  if (eligibleDepts && eligibleDepts.length > 0) {
+    const isDeptEligible = eligibleDepts.some(
       d => d.toLowerCase().trim() === student.department?.toLowerCase().trim()
     );
     if (!isDeptEligible) {
       reasons.push(
-        `Department '${student.department}' is not in eligible list (${offer.eligible_departments.join(', ')})`
+        `Department '${student.department}' is not eligible for role "${roleTitle}" (${eligibleDepts.join(', ')})`
       );
     }
   }
-
-  const crit = offer.eligibility_criteria || {};
 
   // 2. Min CGPA Check
   if (crit.min_cgpa !== undefined && crit.min_cgpa !== null) {
     const cgpa = student.ug_cgpa ?? 0;
     if (cgpa < crit.min_cgpa) {
-      reasons.push(`UG CGPA (${cgpa.toFixed(2)}) is below minimum required of ${crit.min_cgpa}`);
+      reasons.push(`UG CGPA (${cgpa.toFixed(2)}) is below minimum required (${crit.min_cgpa}) for "${roleTitle}"`);
     }
   }
 
@@ -67,7 +71,7 @@ function checkEligibility(
   if (crit.max_backlogs !== undefined && crit.max_backlogs !== null) {
     const backlogs = student.backlogs_count ?? 0;
     if (backlogs > crit.max_backlogs) {
-      reasons.push(`Active backlogs (${backlogs}) exceed maximum allowed (${crit.max_backlogs})`);
+      reasons.push(`Active backlogs (${backlogs}) exceed maximum allowed (${crit.max_backlogs}) for "${roleTitle}"`);
     }
   }
 
@@ -75,7 +79,7 @@ function checkEligibility(
   if (crit.min_10th_pct !== undefined && crit.min_10th_pct !== null) {
     const sslc = student.sslc_percentage ?? 0;
     if (sslc < crit.min_10th_pct) {
-      reasons.push(`10th (SSLC) % (${sslc}%) is below minimum required of ${crit.min_10th_pct}%`);
+      reasons.push(`10th (SSLC) % (${sslc}%) is below minimum required (${crit.min_10th_pct}%) for "${roleTitle}"`);
     }
   }
 
@@ -83,7 +87,7 @@ function checkEligibility(
   if (crit.min_12th_pct !== undefined && crit.min_12th_pct !== null) {
     const hsc = student.hsc_percentage ?? 0;
     if (hsc < crit.min_12th_pct) {
-      reasons.push(`12th (HSC) % (${hsc}%) is below minimum required of ${crit.min_12th_pct}%`);
+      reasons.push(`12th (HSC) % (${hsc}%) is below minimum required (${crit.min_12th_pct}%) for "${roleTitle}"`);
     }
   }
 
@@ -91,7 +95,7 @@ function checkEligibility(
   if (crit.allowed_batches && crit.allowed_batches.length > 0) {
     const studentBatch = student.batch || 'A';
     if (!crit.allowed_batches.includes(studentBatch as any)) {
-      reasons.push(`Student batch (Batch ${studentBatch}) is not in eligible batches (${crit.allowed_batches.map(b => `Batch ${b}`).join(', ')})`);
+      reasons.push(`Student batch (Batch ${studentBatch}) is not eligible for "${roleTitle}" (${crit.allowed_batches.map(b => `Batch ${b}`).join(', ')})`);
     }
   }
 
@@ -118,6 +122,7 @@ export const StudentRegisterPage: React.FC = () => {
   const [resumeFile, setResumeFile] = useState('');
   
   const [existingStudent, setExistingStudent] = useState<Student | null>(null);
+  const [existingAppForDrive, setExistingAppForDrive] = useState<DriveApplication | null>(null);
   const [appliedRoleId, setAppliedRoleId] = useState<string>('');
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [hasReadJd, setHasReadJd] = useState(false);
@@ -153,15 +158,20 @@ export const StudentRegisterPage: React.FC = () => {
     try {
       const students = await DataStore.getStudents();
       const match = students.find(s => s.roll_number.toLowerCase() === cleanRoll.toLowerCase());
-      if (match) {
+      if (match && offer) {
         setExistingStudent(match);
         setName(match.name || '');
         setDepartment(match.department || DEPARTMENTS[0]);
         setEmail(match.email || '');
         setMobileNumber(match.mobile_number || '');
         setResumeFile(match.resume_file || '');
+
+        const existingApps = await DataStore.getApplications(offer.offer_id);
+        const app = existingApps.find(a => a.student_id === match.student_id);
+        setExistingAppForDrive(app || null);
       } else {
         setExistingStudent(null);
+        setExistingAppForDrive(null);
       }
     } finally {
       setSearchingRoll(false);
@@ -193,7 +203,7 @@ export const StudentRegisterPage: React.FC = () => {
     sslc_percentage: existingStudent?.sslc_percentage ?? null,
     hsc_percentage: existingStudent?.hsc_percentage ?? null,
     backlogs_count: existingStudent?.backlogs_count ?? null,
-  }, offer) : { isEligible: true, reasons: [] };
+  }, offer, appliedRoleId) : { isEligible: true, reasons: [] };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -452,6 +462,19 @@ export const StudentRegisterPage: React.FC = () => {
             </div>
           )}
 
+          {/* Duplicate Registration Blocked Banner */}
+          {existingAppForDrive && (
+            <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-xl text-xs text-amber-900 space-y-1">
+              <div className="flex items-center gap-2 font-bold text-sm text-amber-800">
+                <AlertCircle className="h-5 w-5 text-amber-700 shrink-0" />
+                <span>Already Registered for this Drive ({existingAppForDrive.applied_role_title || 'Position'})</span>
+              </div>
+              <p className="text-amber-800 font-medium">
+                Candidates are allowed to register for only 1 position per recruitment drive. You registered on {new Date(existingAppForDrive.applied_at).toLocaleDateString('en-IN')}.
+              </p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Job Role Position Selector */}
             {offer?.job_roles && offer.job_roles.length > 0 && (
@@ -620,11 +643,15 @@ export const StudentRegisterPage: React.FC = () => {
 
               <Button
                 type="submit"
-                disabled={submitting || uploadingResume || !eligibility.isEligible}
+                disabled={submitting || uploadingResume || !eligibility.isEligible || Boolean(existingAppForDrive)}
                 className="gap-2 bg-zinc-900 hover:bg-zinc-800 text-white disabled:bg-zinc-300 disabled:cursor-not-allowed"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                <span>{submitting ? 'Submitting Application...' : !eligibility.isEligible ? 'Ineligible for Drive' : 'Submit Drive Application'}</span>
+                <span>
+                  {submitting ? 'Submitting Application...' :
+                   existingAppForDrive ? 'Already Registered for Drive' :
+                   !eligibility.isEligible ? 'Ineligible for Drive' : 'Submit Drive Application'}
+                </span>
               </Button>
             </div>
           </form>

@@ -912,7 +912,12 @@ export const DataStore = {
 
     if (newApps.length > 0) {
       if (!isMockMode) {
-        await supabase.from('drive_applications').insert(newApps);
+        const { error } = await supabase.from('drive_applications').insert(newApps);
+        if (error) {
+          console.warn('Supabase insert warning for applied_role columns, retrying with core payload fallback:', error);
+          const sanitizedApps = newApps.map(({ applied_role_id, applied_role_title, student, offer, ...core }) => core);
+          await supabase.from('drive_applications').insert(sanitizedApps);
+        }
       } else {
         const allApps = getStored<DriveApplication[]>(STORAGE_KEYS.APPLICATIONS, INITIAL_APPLICATIONS);
         setStored(STORAGE_KEYS.APPLICATIONS, [...newApps, ...allApps]);

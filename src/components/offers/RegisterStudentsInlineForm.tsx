@@ -71,15 +71,6 @@ export const RegisterStudentsInlineForm: React.FC<RegisterStudentsInlineFormProp
     });
   };
 
-  const toggleSelectAll = () => {
-    const unregistered = students.filter(s => !registeredIds.has(s.student_id));
-    if (selectedIds.size === unregistered.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(unregistered.map(s => s.student_id)));
-    }
-  };
-
   const handleRegister = async () => {
     if (selectedIds.size === 0) return;
     setSubmitting(true);
@@ -98,13 +89,66 @@ export const RegisterStudentsInlineForm: React.FC<RegisterStudentsInlineFormProp
     }
   };
 
-  const filteredStudents = students.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.roll_number.toLowerCase().includes(search.toLowerCase()) ||
-    s.department.toLowerCase().includes(search.toLowerCase())
-  );
+  const activeRole = jobRoles.find(r => r.role_id === selectedRoleId) || jobRoles[0];
+  const roleDepts = activeRole?.eligible_departments || eligibleDepartments;
+  const crit = activeRole?.eligibility_criteria || {};
 
-  const unregisteredCount = students.filter(s => !registeredIds.has(s.student_id)).length;
+  const filteredStudents = students.filter(s => {
+    const matchesSearch =
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.roll_number.toLowerCase().includes(search.toLowerCase()) ||
+      s.department.toLowerCase().includes(search.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    // Role-specific Department check
+    if (roleDepts && roleDepts.length > 0) {
+      if (!roleDepts.some(d => d.toLowerCase().trim() === s.department.toLowerCase().trim())) {
+        return false;
+      }
+    }
+
+    // Role-specific Min CGPA check
+    if (crit.min_cgpa !== undefined && crit.min_cgpa !== null) {
+      if ((s.ug_cgpa ?? 0) < crit.min_cgpa) return false;
+    }
+
+    // Role-specific Max Backlogs check
+    if (crit.max_backlogs !== undefined && crit.max_backlogs !== null) {
+      if ((s.backlogs_count ?? 0) > crit.max_backlogs) return false;
+    }
+
+    // Role-specific Allowed Batches check
+    if (crit.allowed_batches && crit.allowed_batches.length > 0) {
+      if (!crit.allowed_batches.includes((s.batch || 'A') as any)) return false;
+    }
+
+    return true;
+  });
+
+  const eligibleUnregistered = filteredStudents.filter(s => !registeredIds.has(s.student_id));
+  const eligibleUnregisteredIds = eligibleUnregistered.map(s => s.student_id);
+
+  const toggleSelectAll = () => {
+    const allSelected = eligibleUnregisteredIds.length > 0 && eligibleUnregisteredIds.every(id => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        eligibleUnregisteredIds.forEach(id => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        eligibleUnregisteredIds.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  const validSelectedCount = Array.from(selectedIds).filter(id =>
+    eligibleUnregistered.some(s => s.student_id === id)
+  ).length;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-in fade-in">
@@ -137,7 +181,10 @@ export const RegisterStudentsInlineForm: React.FC<RegisterStudentsInlineFormProp
                   <button
                     key={r.role_id}
                     type="button"
-                    onClick={() => setSelectedRoleId(r.role_id)}
+                    onClick={() => {
+                      setSelectedRoleId(r.role_id);
+                      setSelectedIds(new Set());
+                    }}
                     className={`px-3 py-1 text-xs font-bold rounded-md border transition-all ${
                       isSelected
                         ? 'bg-zinc-900 text-white border-zinc-900 shadow-xs'
@@ -169,9 +216,11 @@ export const RegisterStudentsInlineForm: React.FC<RegisterStudentsInlineFormProp
             variant="outline"
             size="sm"
             onClick={toggleSelectAll}
-            disabled={unregisteredCount === 0}
+            disabled={eligibleUnregistered.length === 0}
           >
-            {selectedIds.size === unregisteredCount && unregisteredCount > 0 ? 'Deselect All' : 'Select All Eligible'}
+            {eligibleUnregistered.length > 0 && eligibleUnregisteredIds.every(id => selectedIds.has(id))
+              ? 'Deselect All'
+              : 'Select All Eligible'}
           </Button>
         </div>
 
@@ -235,7 +284,7 @@ export const RegisterStudentsInlineForm: React.FC<RegisterStudentsInlineFormProp
 
         <div className="flex items-center justify-between pt-3 border-t border-zinc-100 shrink-0">
           <span className="text-xs font-semibold text-zinc-700">
-            {selectedIds.size} student(s) selected for registration
+            {validSelectedCount} student(s) selected for registration
           </span>
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClose}>
@@ -244,10 +293,10 @@ export const RegisterStudentsInlineForm: React.FC<RegisterStudentsInlineFormProp
             <Button
               type="button"
               size="sm"
-              disabled={selectedIds.size === 0 || submitting}
+              disabled={validSelectedCount === 0 || submitting}
               onClick={handleRegister}
             >
-              {submitting ? 'Registering...' : `Register ${selectedIds.size} Candidate(s)`}
+              {submitting ? 'Registering...' : `Register ${validSelectedCount} Candidate(s)`}
             </Button>
           </div>
         </div>
