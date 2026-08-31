@@ -228,7 +228,7 @@ export const OfferStagePromoteInlineForm: React.FC<OfferStagePromoteInlineFormPr
         drive_date: driveDate || null,
         drive_mode: driveMode,
         job_location: jobLocation.trim(),
-        job_roles: (targetStage === 'hot' || targetStage === 'drive_completed' || targetStage === 'drive_closed') ? jobRoles : offer.job_roles,
+        job_roles: jobRoles,
         stage_history: updatedHistory,
         // Fallbacks
         ctc_lpa: primaryRole.ctc_lpa ?? offer.ctc_lpa,
@@ -241,7 +241,7 @@ export const OfferStagePromoteInlineForm: React.FC<OfferStagePromoteInlineFormPr
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Failed to promote stage.');
+      alert('Failed to save offer configurations.');
     } finally {
       setSaving(false);
     }
@@ -256,6 +256,7 @@ export const OfferStagePromoteInlineForm: React.FC<OfferStagePromoteInlineFormPr
   };
 
   const currentRole = jobRoles[activeRoleIndex] || jobRoles[0];
+  const isEditMode = targetStage === offer.offer_status;
 
   return (
     <Card className="p-6 bg-white border-2 border-zinc-900 shadow-lg space-y-6 animate-in fade-in">
@@ -263,9 +264,17 @@ export const OfferStagePromoteInlineForm: React.FC<OfferStagePromoteInlineFormPr
         <div>
           <h3 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
             <Briefcase className="h-5 w-5 text-zinc-900" />
-            <span>Promote Stage: {stageLabels[offer.offer_status || 'cold']} ➔ {stageLabels[targetStage]}</span>
+            <span>
+              {isEditMode 
+                ? `Edit Configured Job Roles & Drive Parameters`
+                : `Promote Stage: ${stageLabels[offer.offer_status || 'cold']} ➔ ${stageLabels[targetStage]}`}
+            </span>
           </h3>
-          <p className="text-xs text-zinc-500">Configure drive specifications, multi-role parameters, & transition audit notes</p>
+          <p className="text-xs text-zinc-500">
+            {isEditMode
+              ? `Update company job roles, CTC packages, vacancies, eligibility criteria, & JD parameters`
+              : `Configure drive specifications, multi-role parameters, & transition audit notes`}
+          </p>
         </div>
         <button onClick={onClose} className="p-1 rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">
           <X className="h-5 w-5" />
@@ -273,11 +282,20 @@ export const OfferStagePromoteInlineForm: React.FC<OfferStagePromoteInlineFormPr
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="flex items-center gap-2 p-3 bg-zinc-100 border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-800">
-          <span>Current: <strong className="uppercase">{offer.offer_status}</strong></span>
-          <ArrowRight className="h-4 w-4 text-zinc-500" />
-          <span>New Target Stage: <strong className="uppercase text-zinc-900">{targetStage}</strong></span>
-        </div>
+        {!isEditMode ? (
+          <div className="flex items-center gap-2 p-3 bg-zinc-100 border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-800">
+            <span>Current: <strong className="uppercase">{offer.offer_status}</strong></span>
+            <ArrowRight className="h-4 w-4 text-zinc-500" />
+            <span>New Target Stage: <strong className="uppercase text-zinc-900">{targetStage}</strong></span>
+          </div>
+        ) : (
+          <div className="p-3 bg-zinc-100 border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-800 flex items-center justify-between">
+            <span>Editing Configuration for: <strong className="text-zinc-900">{offer.company?.name || 'Company Drive'}</strong></span>
+            <span className="px-2 py-0.5 rounded bg-zinc-900 text-white font-bold text-[10px] uppercase">
+              {stageLabels[offer.offer_status] || offer.offer_status}
+            </span>
+          </div>
+        )}
 
         {/* WARM STAGE SPECIFIC FIELDS */}
         {targetStage === 'warm' && (

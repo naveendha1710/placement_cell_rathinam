@@ -170,6 +170,25 @@ export const DataStore = {
       updated_at: now,
     };
 
+    // Auto-extract resume text from URL link if present and extracted text is empty
+    const linkToExtract = student.resume_link || student.resume_file;
+    if (linkToExtract && (linkToExtract.startsWith('http://') || linkToExtract.startsWith('https://')) && !student.resume_extracted_text) {
+      try {
+        const text = await extractFromUrl(linkToExtract);
+        if (text) {
+          student.resume_extracted_text = text;
+        }
+      } catch (err) {
+        console.warn(`Auto resume extraction warning for student ${student.roll_number}:`, err);
+      }
+    }
+
+    if (student.resume_extracted_text) {
+      student.resume_extracted_text = student.resume_extracted_text
+        .replace(/\u0000/g, '')
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+    }
+
     if (!isMockMode) {
       const { data, error } = await supabase.from('students').upsert(student).select().single();
       if (!error && data) {
@@ -284,6 +303,7 @@ export const DataStore = {
         github_url: (item['github_url'] || item['GitHub URL'] || item['GitHub ID'] || null),
         portfolio_url: (item['portfolio_url'] || item['Portfolio URL'] || item['Portfolio'] || null),
         resume_file: (item['resume_file'] || item['Resume Link'] || item['Resume'] || null),
+        resume_link: (item['resume_link'] || item['Resume Link'] || item['Resume URL'] || item['resume_file'] || item['Resume'] || null),
         photo_file: (item['photo_file'] || item['Student Photo'] || item['Photo'] || null),
         backlogs_count: item['backlogs_count'] || item['Backlogs'] ? parseInt(item['backlogs_count'] || item['Backlogs']) : 0,
         placement_status: (item['placement_status'] || item['Placement Status'] || 'yet_to_be_placed'),
@@ -320,6 +340,24 @@ export const DataStore = {
         const current = getStored<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
         setStored(STORAGE_KEYS.STUDENTS, [...toInsert, ...current]);
       }
+
+      // Background text extraction for bulk imported students with resume links
+      setTimeout(async () => {
+        for (const st of toInsert) {
+          const link = st.resume_link || st.resume_file;
+          if (link && (link.startsWith('http://') || link.startsWith('https://')) && !st.resume_extracted_text) {
+            try {
+              const text = await extractFromUrl(link);
+              if (text) {
+                st.resume_extracted_text = text;
+                await this.saveStudent(st);
+              }
+            } catch (e) {
+              console.warn(`Bulk import resume text extraction skipped for ${st.roll_number}:`, e);
+            }
+          }
+        }
+      }, 100);
     }
 
     return { inserted: toInsert.length, skipped, reasons };
@@ -651,6 +689,7 @@ export const DataStore = {
                 },
                 jd_text: r.jd_text || '',
                 jd_files: r.jd_files || [],
+                jd_link: r.jd_link || (Array.isArray(r.jd_files) && r.jd_files[0] ? r.jd_files[0] : null),
                 extraction_id: r.extraction_id || null,
               }))
             : (o.job_roles || []),
@@ -750,6 +789,51 @@ export const DataStore = {
       updated_at: now,
     };
 
+    // Collect and sync all JD links and files across all job roles and top-level offer fields
+    const allJdFiles: string[] = [];
+    if (offerData.jd_files && Array.isArray(offerData.jd_files)) {
+      allJdFiles.push(...offerData.jd_files);
+    }
+    if (offerData.jd_link && typeof offerData.jd_link === 'string' && offerData.jd_link.trim()) {
+      allJdFiles.push(offerData.jd_link.trim());
+    }
+
+    if (offer.job_roles && offer.job_roles.length > 0) {
+      for (const role of offer.job_roles) {
+        const roleFiles = role.jd_files || [];
+        if (role.jd_link && typeof role.jd_link === 'string' && role.jd_link.trim()) {
+          const cleanLink = role.jd_link.trim();
+          if (!roleFiles.includes(cleanLink)) {
+            role.jd_files = [cleanLink, ...roleFiles];
+          }
+          allJdFiles.push(cleanLink);
+        } else if (roleFiles.length > 0) {
+          role.jd_link = roleFiles[0];
+          allJdFiles.push(...roleFiles);
+        }
+      }
+    }
+
+    const uniqueJdFiles = Array.from(new Set(allJdFiles.filter(f => f && typeof f === 'string' && f.trim().length > 0)));
+    offer.jd_files = uniqueJdFiles;
+    offer.jd_link = offer.jd_link || primaryRole?.jd_link || (uniqueJdFiles.length > 0 ? uniqueJdFiles[0] : null);
+
+    // Auto-extract JD text from link for each job role if jd_link is provided and jd_text is empty
+    if (offer.job_roles && offer.job_roles.length > 0) {
+      for (const role of offer.job_roles) {
+        if (role.jd_link && (role.jd_link.startsWith('http://') || role.jd_link.startsWith('https://')) && (!role.jd_text || !role.jd_text.trim())) {
+          try {
+            const text = await extractFromUrl(role.jd_link);
+            if (text) {
+              role.jd_text = text;
+            }
+          } catch (err) {
+            console.warn(`Auto JD text extraction warning for role ${role.role_title}:`, err);
+          }
+        }
+      }
+    }
+
     // Auto-Upsert Job Description Extraction in document_extractions table
     if (offer.jd_text && offer.jd_text.trim().length > 0) {
       await this.saveDocumentExtraction({
@@ -795,21 +879,24 @@ export const DataStore = {
 
       // Save configured job roles to separate relational public.offer_job_roles table
       if (offer.job_roles && offer.job_roles.length > 0) {
-        const roleRows = offer.job_roles.map(r => ({
-          role_id: (r.role_id && r.role_id.length > 20) ? r.role_id : crypto.randomUUID(),
-          offer_id: offer.offer_id,
-          role_title: r.role_title,
-          ctc_lpa: r.ctc_lpa,
-          base_lpa: r.base_lpa,
-          vacancies: r.vacancies ?? 1,
-          eligible_departments: r.eligible_departments || [],
-          allowed_batches: r.eligibility_criteria?.allowed_batches || ['T', 'O', 'S', 'A', 'X'],
-          min_cgpa: r.eligibility_criteria?.min_cgpa,
-          max_backlogs: r.eligibility_criteria?.max_backlogs,
-          jd_text: r.jd_text,
-          jd_files: r.jd_files || [],
-          extraction_id: r.extraction_id || null,
-        }));
+        const roleRows = offer.job_roles.map(r => {
+          const combinedFiles = Array.from(new Set([...(r.jd_files || []), ...(r.jd_link ? [r.jd_link] : [])]));
+          return {
+            role_id: (r.role_id && r.role_id.length > 20) ? r.role_id : crypto.randomUUID(),
+            offer_id: offer.offer_id,
+            role_title: r.role_title,
+            ctc_lpa: r.ctc_lpa,
+            base_lpa: r.base_lpa,
+            vacancies: r.vacancies ?? 1,
+            eligible_departments: r.eligible_departments || [],
+            allowed_batches: r.eligibility_criteria?.allowed_batches || ['T', 'O', 'S', 'A', 'X'],
+            min_cgpa: r.eligibility_criteria?.min_cgpa,
+            max_backlogs: r.eligibility_criteria?.max_backlogs,
+            jd_text: r.jd_text,
+            jd_files: combinedFiles,
+            extraction_id: r.extraction_id || null,
+          };
+        });
 
         const { error: roleErr } = await supabase.from('offer_job_roles').upsert(roleRows);
         if (roleErr) {

@@ -445,24 +445,12 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
               <label className="text-xs font-medium text-zinc-700 block mb-1">
                 Resume Link (Google Drive / Direct URL)
               </label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="https://drive.google.com/file/d/... or share link"
-                  value={formData.resume_link || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, resume_link: e.target.value }))}
-                  className="font-mono text-xs flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExtractFromLink}
-                  disabled={!formData.resume_link?.trim() || extractingResume}
-                  className="shrink-0 text-xs bg-white"
-                >
-                  {extractingResume ? 'Extracting...' : 'Verify & Extract'}
-                </Button>
-              </div>
+              <Input
+                placeholder="https://drive.google.com/file/d/... or share link"
+                value={formData.resume_link || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, resume_link: e.target.value }))}
+                className="font-mono text-xs"
+              />
               {formData.resume_extracted_text && <p className="text-[11px] text-emerald-700 font-medium mt-1">✓ Resume text extracted ({formData.resume_extracted_text.length} chars)</p>}
             </div>
 

@@ -13,7 +13,7 @@ import { Card } from '../components/ui/Card';
 import { 
   ArrowLeft, Calendar, MapPin, ShieldCheck, FileText, 
   Trash2, User, Layers, UserCheck, Clock, ArrowRight, History, Building2, Download,
-  Users, UserPlus, MessageSquare, Phone, Mail, Award
+  Users, UserPlus, MessageSquare, Phone, Mail, Award, Pencil, ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -345,12 +345,29 @@ export const OfferDetail: React.FC = () => {
         </div>
 
         {/* MULTI-ROLE POSITIONS (WHEN HOT OR COMPLETED) */}
-        {offer.job_roles && offer.job_roles.length > 0 && (
-          <div className="pt-4 border-t border-zinc-200 space-y-3">
+        {/* MULTI-JOB ROLES TABLE (CONFIGURED POSITIONS) */}
+        <div className="pt-4 border-t border-zinc-200 space-y-3">
+          <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
-              <Layers className="h-4 w-4 text-zinc-700" /> Configured Job Roles & Positions ({offer.job_roles.length})
+              <Layers className="h-4 w-4 text-zinc-700" /> Configured Job Roles & Positions ({offer.job_roles?.length || 0})
             </h3>
-            
+            {canCreateEdit && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setTargetPromoteStage(offer.offer_status);
+                  setIsPromoteModalOpen(true);
+                }}
+                className="gap-1.5 bg-white text-xs h-7 font-semibold"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                <span>{offer.job_roles && offer.job_roles.length > 0 ? 'Edit Job Roles' : 'Add Job Roles'}</span>
+              </Button>
+            )}
+          </div>
+          
+          {offer.job_roles && offer.job_roles.length > 0 ? (
             <div className="overflow-x-auto border border-zinc-200 rounded-lg">
               <table className="w-full text-left text-xs text-zinc-700">
                 <thead className="bg-zinc-100 border-b border-zinc-200 uppercase text-[11px] font-semibold text-zinc-600 tracking-wider">
@@ -361,24 +378,65 @@ export const OfferDetail: React.FC = () => {
                     <th className="py-2.5 px-4">Batches</th>
                     <th className="py-2.5 px-4">Min CGPA</th>
                     <th className="py-2.5 px-4">Vacancies</th>
+                    <th className="py-2.5 px-4">JD Link / Doc</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100 bg-white">
-                  {offer.job_roles.map((role) => (
-                    <tr key={role.role_id} className="hover:bg-zinc-50">
-                      <td className="py-3 px-4 font-bold text-zinc-900">{role.role_title}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-emerald-700">{role.ctc_lpa ? `${role.ctc_lpa} LPA` : 'TBD'}</td>
-                      <td className="py-3 px-4 text-zinc-600">{role.eligible_departments?.join(', ') || 'All'}</td>
-                      <td className="py-3 px-4 text-zinc-600">{role.eligibility_criteria?.allowed_batches?.map(b => `Batch ${b}`).join(', ') || 'All'}</td>
-                      <td className="py-3 px-4 text-zinc-600">{role.eligibility_criteria?.min_cgpa || 'N/A'}</td>
-                      <td className="py-3 px-4 text-zinc-600">{role.vacancies ?? 'Open'}</td>
-                    </tr>
-                  ))}
+                  {offer.job_roles.map((role) => {
+                    const jdUrl = role.jd_link || (role.jd_files && role.jd_files.length > 0 ? role.jd_files[0] : null);
+                    return (
+                      <tr key={role.role_id} className="hover:bg-zinc-50">
+                        <td className="py-3 px-4 font-bold text-zinc-900">{role.role_title || 'Unspecified Role'}</td>
+                        <td className="py-3 px-4 font-mono font-bold text-emerald-700">{role.ctc_lpa ? `${role.ctc_lpa} LPA` : 'TBD'}</td>
+                        <td className="py-3 px-4 text-zinc-600">{role.eligible_departments?.join(', ') || 'All'}</td>
+                        <td className="py-3 px-4 text-zinc-600">{role.eligibility_criteria?.allowed_batches?.map(b => `Batch ${b}`).join(', ') || 'All'}</td>
+                        <td className="py-3 px-4 text-zinc-600">{role.eligibility_criteria?.min_cgpa || 'N/A'}</td>
+                        <td className="py-3 px-4 text-zinc-600">{role.vacancies ?? 'Open'}</td>
+                        <td className="py-3 px-4">
+                          {jdUrl ? (
+                            <a
+                              href={jdUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 hover:underline text-xs"
+                            >
+                              <span>View JD</span>
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : role.jd_text ? (
+                            <span className="text-emerald-700 font-semibold text-[11px]" title={role.jd_text}>
+                              Extracted Text
+                            </span>
+                          ) : (
+                            <span className="text-zinc-400 text-[11px]">No Link</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="p-4 bg-zinc-50 border border-dashed border-zinc-300 rounded-lg text-center space-y-2">
+              <p className="text-xs text-zinc-500 font-medium">No job roles or position specifications configured for this drive yet.</p>
+              {canCreateEdit && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setTargetPromoteStage(offer.offer_status);
+                    setIsPromoteModalOpen(true);
+                  }}
+                  className="gap-1.5 bg-white text-xs"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  <span>Configure Job Roles</span>
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* JD Attachments Row */}
         {offer.jd_files && offer.jd_files.length > 0 && (

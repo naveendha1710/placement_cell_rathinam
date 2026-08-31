@@ -141,7 +141,7 @@ export const OfferCandidates: React.FC = () => {
           <div>
             <h1 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
               <Users className="h-5 w-5 text-zinc-800" />
-              <span>{offer.company?.name || 'Company'} — Registered Student Matrix</span>
+              <span>{offer.company?.name || 'Company'} — Registered Students</span>
             </h1>
             <p className="text-xs text-zinc-500">
               Total {applications.length} student(s) registered for this recruitment drive

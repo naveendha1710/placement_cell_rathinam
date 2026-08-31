@@ -1,7 +1,9 @@
 /**
- * Client-Side Document & Remote Link Text Extractor
- * Extracts full text from .docx, .pdf, .txt, and Google Drive URL share links.
+ * Client-Side & Server-Side Document Link Text Extractor
+ * Uses Supabase Edge Function 'extract-link-text' for server-to-server Google Drive fetching.
  */
+
+import { supabase } from '../lib/supabase';
 
 export interface RemoteFileFetchResult {
   buffer: ArrayBuffer;
@@ -20,95 +22,97 @@ export function extractGoogleDriveId(url: string): string | null {
   }
 }
 
-export async function getFileBytes(link: string): Promise<RemoteFileFetchResult> {
-  const cleanLink = link.trim();
+/**
+ * Primary document link text extraction method.
+ * Routes request through the Supabase Edge Function 'extract-link-text'
+ * to avoid browser CORS restrictions and third-party proxies.
+ */
+export async function extractFromUrl(link: string): Promise<string> {
+  const cleanLink = (link || '').trim();
   if (!cleanLink.startsWith('http://') && !cleanLink.startsWith('https://')) {
     throw new Error('Invalid URL format. Please provide a valid http:// or https:// link.');
   }
 
   const lowerLink = cleanLink.toLowerCase();
-
-  // 1. Check for Microsoft OneDrive / SharePoint links
   if (lowerLink.includes('onedrive.live.com') || lowerLink.includes('1drv.ms') || lowerLink.includes('sharepoint.com')) {
-    throw new Error('Microsoft (OneDrive / SharePoint) link support is coming soon. Please provide a Google Drive share link ("Anyone with the link") or direct document URL.');
-  }
-
-  // 2. Check for Native Google Docs Editor link vs downloadable file
-  if (lowerLink.includes('docs.google.com/document/d/')) {
-    const docId = lowerLink.split('/document/d/')[1]?.split('/')[0];
-    if (docId) {
-      // Convert native Google Doc editor link to direct PDF export link
-      const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=pdf`;
-      const res = await fetch(exportUrl);
-      if (res.ok) {
-        const buffer = await res.arrayBuffer();
-        return { buffer, fileName: `googledoc_${docId}.pdf`, mimeType: 'application/pdf' };
-      }
-    }
-    throw new Error('Unable to access Google Doc editor link. Please make sure file sharing is set to "Anyone with the link" or provide a downloadable file share link.');
-  }
-
-  // 3. Check for Google Drive File links
-  const gdriveId = extractGoogleDriveId(cleanLink);
-  let targetFetchUrl = cleanLink;
-  let inferredFileName = 'document.pdf';
-
-  if (gdriveId) {
-    targetFetchUrl = `https://drive.google.com/uc?export=download&id=${gdriveId}`;
-    inferredFileName = `gdrive_${gdriveId}.pdf`;
+    throw new Error('Microsoft (OneDrive / SharePoint) link support is coming soon. Please provide a Google Drive share link ("Anyone with the link can view") or direct document URL.');
   }
 
   try {
-    const response = await fetchWithCorsBypass(targetFetchUrl);
+    // 1. Invoke Supabase Edge Function for server-to-server link fetching
+    const { data, error } = await supabase.functions.invoke('extract-link-text', {
+      body: { link: cleanLink },
+    });
 
-    const contentType = response.headers.get('content-type') || '';
-    const buffer = await response.arrayBuffer();
-
-    // Verify response is not an HTML error or login page
-    if (contentType.includes('text/html') && buffer.byteLength < 50000) {
-      const text = new TextDecoder('utf-8', { fatal: false }).decode(buffer);
-      if (text.includes('ServiceLogin') || text.includes('accounts.google.com') || text.includes('Access Denied')) {
-        throw new Error('File is private or restricted. Please set Google Drive sharing permissions to "Anyone with the link can view".');
+    if (error) {
+      console.warn('Supabase Edge Function extract-link-text error, attempting direct fallback:', error);
+    } else if (data) {
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      if (data.text && typeof data.text === 'string' && data.text.trim().length > 0) {
+        return data.text.trim();
       }
     }
-
-    return { buffer, fileName: inferredFileName, mimeType: contentType };
   } catch (err: any) {
-    if (err.message && err.message.includes('Anyone with the link')) {
+    if (err.message && (err.message.includes('Anyone with the link') || err.message.includes('Microsoft') || err.message.includes('Invalid URL'))) {
       throw err;
     }
-    throw new Error(`Failed to fetch file from link: ${err.message || 'Network error or dead link.'}`);
+    console.warn('Edge Function extraction error:', err);
   }
+
+  // 2. Direct fetch fallback (for direct file URLs or CORS-enabled servers, zero 3rd-party proxies)
+  const { buffer, fileName } = await getFileBytes(cleanLink);
+  const text = await extractTextFromBuffer(buffer, fileName);
+  if (!text || text.trim().length === 0) {
+    throw new Error('Could not extract text from document. Please verify document contains readable text.');
+  }
+  return text;
 }
 
-async function fetchWithCorsBypass(url: string): Promise<Response> {
-  // 1. Try direct fetch first
-  try {
-    const directRes = await fetch(url, { method: 'GET' });
-    if (directRes.ok) return directRes;
-  } catch (e) {
-    // Proceed to CORS proxy fallback
+export async function getFileBytes(link: string): Promise<RemoteFileFetchResult> {
+  const cleanLink = link.trim();
+  const gdriveId = extractGoogleDriveId(cleanLink);
+
+  const candidateUrls: string[] = [];
+  if (gdriveId) {
+    if (cleanLink.toLowerCase().includes('docs.google.com/document/d/')) {
+      candidateUrls.push(`https://docs.google.com/document/d/${gdriveId}/export?format=pdf`);
+    }
+    candidateUrls.push(
+      `https://drive.google.com/uc?export=download&confirm=t&id=${gdriveId}`,
+      `https://drive.google.com/uc?export=download&id=${gdriveId}`
+    );
+  }
+  candidateUrls.push(cleanLink);
+
+  let lastErr: Error = new Error('Failed to fetch file from link');
+
+  for (const url of candidateUrls) {
+    try {
+      const response = await fetch(url, { method: 'GET' });
+      if (!response.ok) continue;
+
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      const buffer = await response.arrayBuffer();
+
+      if (buffer.byteLength > 100) {
+        const sample = new TextDecoder('utf-8', { fatal: false }).decode(buffer.slice(0, 1000)).toLowerCase();
+        if (contentType.includes('text/html') || sample.includes('<!doctype') || sample.includes('<html')) {
+          if (sample.includes('servicelogin') || sample.includes('access denied') || sample.includes('page not found')) {
+            throw new Error('File is private or inaccessible. Please set Google Drive sharing permissions to "Anyone with the link can view".');
+          }
+          continue;
+        }
+        return { buffer, fileName: gdriveId ? `gdrive_${gdriveId}.pdf` : 'document.pdf', mimeType: contentType };
+      }
+    } catch (e: any) {
+      lastErr = e;
+      if (e.message && e.message.includes('Anyone with the link')) throw e;
+    }
   }
 
-  // 2. Try corsproxy.io proxy fallback
-  try {
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-    const proxyRes = await fetch(proxyUrl, { method: 'GET' });
-    if (proxyRes.ok) return proxyRes;
-  } catch (e) {
-    // Proceed to secondary proxy
-  }
-
-  // 3. Try allorigins.win proxy fallback
-  try {
-    const allOriginsUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const allOriginsRes = await fetch(allOriginsUrl, { method: 'GET' });
-    if (allOriginsRes.ok) return allOriginsRes;
-  } catch (e) {
-    // Proxy fallback failed
-  }
-
-  throw new Error('CORS restriction on Google Drive URL. Please verify file sharing is set to "Anyone with the link can view".');
+  throw new Error(`Failed to fetch file directly: ${lastErr.message || 'CORS restriction'}`);
 }
 
 async function extractTextFromDocxArrayBuffer(buffer: ArrayBuffer): Promise<string> {
@@ -206,42 +210,48 @@ function extractTextFromPdfArrayBuffer(buffer: ArrayBuffer): string {
   return '';
 }
 
-export async function extractTextFromBuffer(buffer: ArrayBuffer, fileName = 'document.pdf'): Promise<string> {
-  const name = fileName.toLowerCase();
-
-  // 1. Try DOCX parsing if zip structure present
-  const docxText = await extractTextFromDocxArrayBuffer(buffer);
-  if (docxText && docxText.length > 20) {
-    return docxText;
-  }
-
-  // 2. Try PDF parsing
-  const pdfText = extractTextFromPdfArrayBuffer(buffer);
-  if (pdfText && pdfText.length > 20) {
-    return pdfText;
-  }
-
-  // 3. Fallback: UTF-8 / Text stream decoding
-  try {
-    const rawText = new TextDecoder('utf-8', { fatal: false }).decode(buffer);
-    const printable = rawText.replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
-    if (printable.length > 30) {
-      return printable;
-    }
-  } catch (e) {
-    // Ignore fallback error
-  }
-
-  return `Extracted Document Contents (${fileName}): Document text parsed successfully for skill analysis.`;
+export function isBinaryNoise(text: string): boolean {
+  if (!text || text.trim().length < 10) return true;
+  const validWords = text.match(/[a-zA-Z]{2,}/g) || [];
+  const wordLengthSum = validWords.reduce((acc, w) => acc + w.length, 0);
+  // If readable alphabetic words make up less than 40% of the string, it is binary noise
+  return (wordLengthSum / text.length) < 0.40;
 }
 
-export async function extractFromUrl(url: string): Promise<string> {
-  const { buffer, fileName } = await getFileBytes(url);
-  const text = await extractTextFromBuffer(buffer, fileName);
-  if (!text || text.trim().length === 0) {
-    throw new Error('Extracted text is empty. Please verify the document contains readable text.');
+export async function extractTextFromBuffer(buffer: ArrayBuffer, fileName = 'document.pdf'): Promise<string> {
+  const bytes = new Uint8Array(buffer);
+  const isPdf = bytes.length > 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+
+  const docxText = await extractTextFromDocxArrayBuffer(buffer);
+  if (docxText && docxText.length > 20 && !isBinaryNoise(docxText)) {
+    return docxText.replace(/\u0000/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
   }
-  return text;
+
+  if (isPdf) {
+    const pdfText = extractTextFromPdfArrayBuffer(buffer);
+    if (pdfText && pdfText.length > 20 && !isBinaryNoise(pdfText)) {
+      return pdfText.replace(/\u0000/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+    }
+    throw new Error('This PDF appears to be scanned or image-based and has no extractable text layer. Please provide a text-based document or Google Doc link.');
+  }
+
+  try {
+    const rawText = new TextDecoder('utf-8', { fatal: false }).decode(buffer);
+    const lowerRaw = rawText.toLowerCase();
+
+    if (lowerRaw.includes('<!doctype') || lowerRaw.includes('<html') || lowerRaw.includes('<script') || lowerRaw.includes('<title>')) {
+      throw new Error('Link returned an HTML web page instead of document text. Verify document link.');
+    }
+
+    const printable = rawText.replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (printable.length > 30 && !isBinaryNoise(printable)) {
+      return printable.replace(/\u0000/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+    }
+  } catch (e: any) {
+    if (e.message && e.message.includes('HTML web page')) throw e;
+  }
+
+  throw new Error('Unable to parse readable text from document. File content is unreadable or corrupted.');
 }
 
 export async function extractTextFromDocumentFile(file: File): Promise<string> {
