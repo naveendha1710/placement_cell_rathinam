@@ -244,12 +244,30 @@ export const OfferDetail: React.FC = () => {
                 </div>
               )}
 
-              {offer.expected_openings && (
-                <div className="flex justify-between py-2 border-b border-zinc-100">
-                  <span className="text-zinc-500 font-medium">Expected Vacancies:</span>
-                  <span className="font-semibold text-zinc-900">{offer.expected_openings} Openings</span>
-                </div>
-              )}
+              {(() => {
+                const roleVacanciesSum = offer.job_roles?.reduce((acc, r) => acc + (r.vacancies || 0), 0) || 0;
+                const totalVacancies = roleVacanciesSum > 0 ? roleVacanciesSum : offer.expected_openings;
+
+                if (!totalVacancies) return null;
+
+                return (
+                  <div className="flex justify-between py-2 border-b border-zinc-100">
+                    <span className="text-zinc-500 font-medium">Expected Vacancies:</span>
+                    <div className="text-right">
+                      <span className="font-semibold text-zinc-900">{totalVacancies} Openings</span>
+                      {offer.job_roles && offer.job_roles.length > 1 && roleVacanciesSum > 0 && (
+                        <div className="flex flex-wrap justify-end gap-1 mt-1">
+                          {offer.job_roles.map((r, idx) => (
+                            <span key={idx} className="text-[10px] bg-zinc-100 text-zinc-700 px-1.5 py-0.5 rounded border border-zinc-200">
+                              {r.role_title}: {r.vacancies || 'TBD'}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {(offer.offer_status === 'hot' || offer.offer_status === 'drive_completed') && (
                 <>
