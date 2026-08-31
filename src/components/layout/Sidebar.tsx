@@ -83,9 +83,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
           isCollapsed ? "justify-center" : "px-5 py-4"
         )}>
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-zinc-900 text-white flex items-center justify-center font-bold text-lg shadow-xs shrink-0">
-              R
-            </div>
+            <img 
+              src="/Rathinam_Logo_no_name.png" 
+              alt="Rathinam Logo" 
+              className="h-9 w-9 object-contain shrink-0" 
+            />
             {!isCollapsed && (
               <div className="truncate">
                 <h1 className="font-bold text-sm text-zinc-900 tracking-tight truncate">Placement Portal</h1>

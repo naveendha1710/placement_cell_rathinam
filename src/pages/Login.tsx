@@ -36,9 +36,11 @@ export const Login: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-zinc-100 p-4">
       <Card className="w-full max-w-md shadow-lg border-zinc-200">
         <CardHeader className="text-center pb-2">
-          <div className="h-12 w-12 rounded-xl bg-zinc-900 text-white flex items-center justify-center font-bold text-2xl mx-auto mb-3 shadow-md">
-            R
-          </div>
+          <img 
+            src="/rathinam_logo_student.png" 
+            alt="Rathinam Group Logo" 
+            className="h-16 w-auto mx-auto mb-3 object-contain"
+          />
           <CardTitle className="text-xl">Placement Portal Sign In</CardTitle>
           <CardDescription>Rathinam Group of Institutions</CardDescription>
         </CardHeader>
