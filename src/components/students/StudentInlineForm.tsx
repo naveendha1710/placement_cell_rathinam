@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Student, PlacementStatus, ResidencyType, PGStatus, StudentBatch } from '../../types/database';
 import { DataStore } from '../../lib/store';
+import { extractFromUrl } from '../../utils/documentExtractor';
 import { useAuth } from '../../context/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Input } from '../ui/Input';
@@ -39,7 +40,6 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
     gender: 'Male',
     residency: 'day_scholar' as ResidencyType,
     batch: 'A' as StudentBatch,
-    source: '',
     sslc_percentage: '',
     hsc_percentage: '',
     ug_cgpa: '',
@@ -59,6 +59,8 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
     linkedin_url: '',
     portfolio_url: '',
     resume_file: '',
+    resume_link: '',
+    resume_extracted_text: '',
     video_intro_link: '',
     photo_file: '',
   });
@@ -66,6 +68,21 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
   const [saving, setSaving] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [extractingResume, setExtractingResume] = useState(false);
+
+  const handleExtractFromLink = async () => {
+    const link = formData.resume_link?.trim();
+    if (!link) return;
+    setExtractingResume(true);
+    try {
+      const text = await extractFromUrl(link);
+      setFormData(prev => ({ ...prev, resume_extracted_text: text }));
+    } catch (err: any) {
+      alert(`Failed to extract text from resume link: ${err.message || 'Error fetching file'}`);
+    } finally {
+      setExtractingResume(false);
+    }
+  };
 
   useEffect(() => {
     if (student) {
@@ -76,7 +93,6 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
         gender: student.gender || 'Male',
         residency: (student.residency as ResidencyType) || 'day_scholar',
         batch: (student.batch as StudentBatch) || 'A',
-        source: student.source || '',
         sslc_percentage: student.sslc_percentage?.toString() || '',
         hsc_percentage: student.hsc_percentage?.toString() || '',
         ug_cgpa: student.ug_cgpa?.toString() || '',
@@ -96,6 +112,8 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
         linkedin_url: student.linkedin_url || '',
         portfolio_url: student.portfolio_url || '',
         resume_file: student.resume_file || '',
+        resume_link: student.resume_link || '',
+        resume_extracted_text: student.resume_extracted_text || '',
         video_intro_link: student.video_intro_link || '',
         photo_file: student.photo_file || '',
       });
@@ -146,7 +164,6 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
         gender: formData.gender,
         residency: formData.residency,
         batch: formData.batch,
-        source: formData.source.trim(),
         sslc_percentage: formData.sslc_percentage ? parseFloat(formData.sslc_percentage) : null,
         hsc_percentage: formData.hsc_percentage ? parseFloat(formData.hsc_percentage) : null,
         ug_cgpa: formData.ug_cgpa ? parseFloat(formData.ug_cgpa) : null,
@@ -166,6 +183,8 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
         linkedin_url: formData.linkedin_url.trim(),
         portfolio_url: formData.portfolio_url.trim(),
         resume_file: formData.resume_file.trim(),
+        resume_link: formData.resume_link.trim(),
+        resume_extracted_text: formData.resume_extracted_text || null,
         video_intro_link: formData.video_intro_link.trim(),
         photo_file: formData.photo_file.trim(),
       });
@@ -238,12 +257,6 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
               placeholder="+91 9876543210"
               value={formData.mobile_number}
               onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
-            />
-            <Input
-              label="Source Column / Channel"
-              placeholder="e.g. Walk-in, Portal, Referral"
-              value={formData.source}
-              onChange={(e) => setFormData({ ...formData, source: e.target.value })}
             />
             <Input
               label="Graduation Date"
@@ -430,16 +443,27 @@ export const StudentInlineForm: React.FC<StudentInlineFormProps> = ({
 
             <div>
               <label className="text-xs font-medium text-zinc-700 block mb-1">
-                Upload Resume → <span className="font-bold">student_files</span>
+                Resume Link (Google Drive / Direct URL)
               </label>
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={handleResumeUpload}
-                disabled={uploadingResume}
-                className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-zinc-900 file:text-white cursor-pointer"
-              />
-              {formData.resume_file && <p className="text-[11px] text-emerald-700 font-medium mt-1 truncate">✓ {formData.resume_file}</p>}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://drive.google.com/file/d/... or share link"
+                  value={formData.resume_link || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, resume_link: e.target.value }))}
+                  className="font-mono text-xs flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExtractFromLink}
+                  disabled={!formData.resume_link?.trim() || extractingResume}
+                  className="shrink-0 text-xs bg-white"
+                >
+                  {extractingResume ? 'Extracting...' : 'Verify & Extract'}
+                </Button>
+              </div>
+              {formData.resume_extracted_text && <p className="text-[11px] text-emerald-700 font-medium mt-1">✓ Resume text extracted ({formData.resume_extracted_text.length} chars)</p>}
             </div>
 
             <div>

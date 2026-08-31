@@ -53,6 +53,23 @@ export const OfferCandidates: React.FC = () => {
     }
   };
 
+  const [scoringProgress, setScoringProgress] = useState<{ current: number; total: number } | null>(null);
+
+  const handleRunAiMatching = async () => {
+    if (!offer) return;
+    setScoringProgress({ current: 0, total: applications.length });
+    try {
+      const updatedApps = await DataStore.scoreOfferCandidates(offer.offer_id, undefined, (curr, tot) => {
+        setScoringProgress({ current: curr, total: tot });
+      });
+      setApplications(updatedApps);
+    } catch (e) {
+      console.error('AI Skill matching error:', e);
+    } finally {
+      setScoringProgress(null);
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, [id]);
@@ -225,7 +242,8 @@ export const OfferCandidates: React.FC = () => {
                     <th className="py-3 px-4">Roll Number</th>
                     <th className="py-3 px-4">Student Name</th>
                     <th className="py-3 px-4">Department</th>
-                    <th className="py-3 px-4">Batch</th>
+                    <th className="py-3 px-4">Match Score</th>
+                    <th className="py-3 px-4">Skills Match Analysis</th>
                     <th className="py-3 px-4">Applied Date</th>
                     <th className="py-3 px-4">Selection Status</th>
                     <th className="py-3 px-4">Offer Acceptance</th>
@@ -250,9 +268,41 @@ export const OfferCandidates: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 text-zinc-700">{app.student?.department || 'N/A'}</td>
                       <td className="py-3 px-4">
-                        <span className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-zinc-100 text-zinc-700 border border-zinc-200">
-                          Batch {app.student?.batch || 'N/A'}
-                        </span>
+                        {app.match_score !== undefined && app.match_score !== null ? (
+                          <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold border ${
+                            app.match_score >= 75
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                              : app.match_score >= 50
+                              ? 'bg-amber-100 text-amber-800 border-amber-300'
+                              : 'bg-rose-100 text-rose-800 border-rose-300'
+                          }`}>
+                            {app.match_score}% Match
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-zinc-400 font-mono">Unscored</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="space-y-1 max-w-xs">
+                          {app.matched_skills && app.matched_skills.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {app.matched_skills.slice(0, 4).map((s, idx) => (
+                                <span key={idx} className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[10px] font-medium border border-emerald-200">
+                                  ✓ {s}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {app.missing_skills && app.missing_skills.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {app.missing_skills.slice(0, 3).map((s, idx) => (
+                                <span key={idx} className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-[10px] font-medium border border-amber-200">
+                                  ✕ {s}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-zinc-500 font-mono">
                         {new Date(app.applied_at).toLocaleDateString('en-IN')}

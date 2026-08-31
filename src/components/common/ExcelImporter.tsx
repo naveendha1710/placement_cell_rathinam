@@ -28,14 +28,13 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({ type, onSuccess })
 
     if (type === 'students') {
       headers = [
-        'source', 'roll_number', 'name', 'department', 'gender', 'residency', 'batch',
+        'roll_number', 'name', 'department', 'gender', 'residency', 'batch',
         'sslc_percentage', 'hsc_percentage', 'ug_percentage', 'ug_cgpa',
         'pg_percentage', 'pg_cgpa', 'github_url', 'resume_file', 'linkedin_url',
         'graduation_date', 'portfolio_url', 'personal_email', 'email',
         'mobile_number', 'photo_file', 'backlogs_count', 'placement_status'
       ];
       sampleRow = {
-        source: 'Campus Walk-in',
         roll_number: '714021104099',
         name: 'John Doe',
         department: 'Computer Science',

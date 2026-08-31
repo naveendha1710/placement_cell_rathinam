@@ -316,10 +316,6 @@ export const StudentDetail: React.FC = () => {
 
             {/* Profile Details List */}
             <div className="border-t border-zinc-100 pt-4 text-left space-y-3 text-xs">
-              <div className="flex items-center justify-between py-1 border-b border-zinc-50">
-                <span className="text-zinc-500 font-medium">Source Column</span>
-                <span className="font-bold text-zinc-900">{student.source || 'Direct Entry'}</span>
-              </div>
 
               <div className="flex items-center justify-between py-1 border-b border-zinc-50">
                 <span className="text-zinc-500 font-medium">Gender</span>
@@ -460,22 +456,23 @@ export const StudentDetail: React.FC = () => {
                 )}
               </div>
 
-              {/* Resume File Button */}
-              {student.resume_file ? (
+              {/* Resume Link Button */}
+              {student.resume_link || student.resume_file ? (
                 <div className="pt-2">
                   <a
-                    href={student.resume_file}
+                    href={student.resume_link || student.resume_file || '#'}
                     target="_blank"
                     rel="noreferrer"
                     className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg flex items-center justify-center gap-2 text-xs transition-colors"
                   >
                     <FileText className="h-4 w-4" />
-                    <span>View Resume Document</span>
+                    <span>View Resume Share Link</span>
+                    <ExternalLink className="h-3 w-3" />
                   </a>
                 </div>
               ) : (
                 <div className="pt-2 text-center text-[11px] text-zinc-400 italic">
-                  No resume attached to profile
+                  No resume link attached to profile
                 </div>
               )}
             </div>

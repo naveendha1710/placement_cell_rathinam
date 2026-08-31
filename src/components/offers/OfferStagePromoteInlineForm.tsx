@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Offer, OfferStatus, DriveMode, StudentBatch, JobRole, StageHistoryEntry } from '../../types/database';
 import { DataStore } from '../../lib/store';
 import { useAuth } from '../../context/AuthContext';
-import { extractTextFromDocumentFile } from '../../utils/documentExtractor';
+import { extractFromUrl } from '../../utils/documentExtractor';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
-import { Plus, Trash2, CheckCircle, Layers, Calendar, MessageSquare, Briefcase, ArrowRight, X } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Layers, Calendar, MessageSquare, Briefcase, ArrowRight, X, Link as LinkIcon } from 'lucide-react';
 
 interface OfferStagePromoteInlineFormProps {
   onClose: () => void;
@@ -178,41 +178,21 @@ export const OfferStagePromoteInlineForm: React.FC<OfferStagePromoteInlineFormPr
     setJobRoles(updated);
   };
 
-  const handleFileUpload = async (index: number, files: FileList | null) => {
-    if (!files || files.length === 0) return;
+  const handleJdLinkExtract = async (index: number) => {
+    const role = jobRoles[index];
+    const link = role.jd_link?.trim();
+    if (!link) return;
+
     setUploadingJd(true);
     try {
-      const file = files[0];
-      const uploadedPath = await DataStore.uploadFile('jd-files', `${offer.company_id}/${Date.now()}_${file.name}`, file);
-      
-      let extractedText = '';
-      try {
-        extractedText = await extractTextFromDocumentFile(file);
-      } catch (err) {
-        console.warn('Could not extract text automatically from JD:', err);
-      }
-
-      const role = jobRoles[index];
-      const existingFiles = role.jd_files || [];
-      const updatedFiles = [...existingFiles, uploadedPath];
+      const extractedText = await extractFromUrl(link);
       const updatedText = role.jd_text ? `${role.jd_text}\n\n${extractedText}` : extractedText;
-
-      handleUpdateRoleField(index, {
-        jd_files: updatedFiles,
-        jd_text: updatedText,
-      });
-    } catch (err) {
-      console.error(err);
-      alert('Failed to upload JD file.');
+      handleUpdateRoleField(index, { jd_text: updatedText });
+    } catch (err: any) {
+      alert(`Failed to extract JD text from link: ${err.message || 'Error fetching file'}`);
     } finally {
       setUploadingJd(false);
     }
-  };
-
-  const handleRemoveJdFile = (roleIndex: number, fileIndex: number) => {
-    const role = jobRoles[roleIndex];
-    const updatedFiles = (role.jd_files || []).filter((_, idx) => idx !== fileIndex);
-    handleUpdateRoleField(roleIndex, { jd_files: updatedFiles });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -599,35 +579,32 @@ export const OfferStagePromoteInlineForm: React.FC<OfferStagePromoteInlineFormPr
                         className="w-full p-2.5 text-xs rounded-md border border-zinc-300 bg-white focus:ring-2 focus:ring-zinc-900 font-mono"
                       />
 
-                      <div className="flex items-center gap-3 pt-1">
-                        <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-300 rounded-md text-xs font-semibold text-zinc-800 hover:bg-zinc-50 shadow-xs">
-                          <Plus className="h-3.5 w-3.5" />
-                          <span>{uploadingJd ? 'Uploading JD...' : 'Upload JD File'}</span>
-                          <input
-                            key={`jd_file_input_${activeRoleIndex}_${(currentRole.jd_files || []).length}`}
-                            type="file"
-                            accept=".pdf,.doc,.docx,.txt"
-                            onChange={(e) => {
-                              handleFileUpload(activeRoleIndex, e.target.files);
-                              e.target.value = '';
-                            }}
-                            disabled={uploadingJd}
-                            className="hidden"
-                          />
+                      <div>
+                        <label className="text-[11px] font-semibold text-zinc-700 block mb-1">
+                          Job Description Document Link (Google Drive / Direct URL)
                         </label>
-
-                        {currentRole.jd_files && currentRole.jd_files.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {currentRole.jd_files.map((file, fileIdx) => (
-                              <span key={fileIdx} className="inline-flex items-center gap-1 px-2 py-1 bg-zinc-100 border border-zinc-300 rounded text-[11px] font-mono text-zinc-800">
-                                {file.split('/').pop()}
-                                <button type="button" onClick={() => handleRemoveJdFile(activeRoleIndex, fileIdx)} className="text-red-500 hover:text-red-700">
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </span>
-                            ))}
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <LinkIcon className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+                            <input
+                              type="url"
+                              placeholder="https://drive.google.com/file/d/... or share link"
+                              value={currentRole.jd_link || ''}
+                              onChange={(e) => handleUpdateRoleField(activeRoleIndex, { jd_link: e.target.value })}
+                              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-zinc-300 bg-white focus:ring-2 focus:ring-zinc-900 font-mono"
+                            />
                           </div>
-                        )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleJdLinkExtract(activeRoleIndex)}
+                            disabled={!currentRole.jd_link?.trim() || uploadingJd}
+                            className="shrink-0 text-xs gap-1.5 bg-white"
+                          >
+                            {uploadingJd ? 'Extracting...' : 'Verify Link & Extract Text'}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>

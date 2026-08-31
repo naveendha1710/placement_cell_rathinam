@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { DataStore } from '../lib/store';
 import { Offer, Student, DriveApplication } from '../types/database';
 import { useAuth } from '../context/AuthContext';
+import { extractFromUrl } from '../utils/documentExtractor';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -10,7 +11,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { 
   Calendar, MapPin, Search, 
-  FileText, CheckCircle2, UserCheck, AlertCircle, GraduationCap, XCircle, Briefcase 
+  FileText, CheckCircle2, UserCheck, AlertCircle, GraduationCap, XCircle, Briefcase, Link as LinkIcon 
 } from 'lucide-react';
 
 const DEPARTMENTS = [
@@ -113,13 +114,16 @@ export const StudentRegisterPage: React.FC = () => {
   const [offer, setOffer] = useState<Offer | null>(null);
   const [loadingOffer, setLoadingOffer] = useState(true);
 
-  // Registration Form State
+  // Form inputs
   const [rollNumber, setRollNumber] = useState('');
   const [name, setName] = useState('');
   const [department, setDepartment] = useState(DEPARTMENTS[0]);
   const [email, setEmail] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
-  const [resumeFile, setResumeFile] = useState('');
+  const [resumeLink, setResumeLink] = useState('');
+  const [resumeExtractedText, setResumeExtractedText] = useState('');
+  const [extractingResume, setExtractingResume] = useState(false);
+  const [extractError, setExtractError] = useState('');
   
   const [existingStudent, setExistingStudent] = useState<Student | null>(null);
   const [existingAppForDrive, setExistingAppForDrive] = useState<DriveApplication | null>(null);
@@ -127,7 +131,6 @@ export const StudentRegisterPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [hasReadJd, setHasReadJd] = useState(false);
   const [searchingRoll, setSearchingRoll] = useState(false);
-  const [uploadingResume, setUploadingResume] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
@@ -164,7 +167,8 @@ export const StudentRegisterPage: React.FC = () => {
         setDepartment(match.department || DEPARTMENTS[0]);
         setEmail(match.email || '');
         setMobileNumber(match.mobile_number || '');
-        setResumeFile(match.resume_file || '');
+        setResumeLink(match.resume_link || match.resume_file || '');
+        setResumeExtractedText(match.resume_extracted_text || '');
 
         const existingApps = await DataStore.getApplications(offer.offer_id);
         const app = existingApps.find(a => a.student_id === match.student_id);
@@ -178,20 +182,17 @@ export const StudentRegisterPage: React.FC = () => {
     }
   };
 
-  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingResume(true);
-    setErrorMsg('');
+  const handleResumeLinkExtract = async () => {
+    if (!resumeLink || !resumeLink.trim()) return;
+    setExtractingResume(true);
+    setExtractError('');
     try {
-      const fileName = `${rollNumber || Date.now()}_resume_${file.name}`;
-      const publicUrl = await DataStore.uploadFile('student_files', fileName, file);
-      setResumeFile(publicUrl);
-    } catch (err) {
-      console.error(err);
-      setErrorMsg('Failed to upload resume to student_files bucket.');
+      const text = await extractFromUrl(resumeLink.trim());
+      setResumeExtractedText(text);
+    } catch (err: any) {
+      setExtractError(err.message || 'Failed to extract document text from link.');
     } finally {
-      setUploadingResume(false);
+      setExtractingResume(false);
     }
   };
 
@@ -229,7 +230,8 @@ export const StudentRegisterPage: React.FC = () => {
         department,
         email: email.trim(),
         mobile_number: mobileNumber.trim() || undefined,
-        resume_file: resumeFile || undefined,
+        resume_link: resumeLink.trim() || undefined,
+        resume_extracted_text: resumeExtractedText || undefined,
         ug_cgpa: existingStudent?.ug_cgpa ?? 8.0,
         backlogs_count: existingStudent?.backlogs_count ?? 0,
         placement_status: existingStudent?.placement_status || 'yet_to_be_placed',
@@ -320,7 +322,7 @@ export const StudentRegisterPage: React.FC = () => {
           <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-700 max-w-md mx-auto text-left space-y-1 font-mono">
             <p><span className="font-semibold text-zinc-900">Department:</span> {department}</p>
             <p><span className="font-semibold text-zinc-900">Registered Email:</span> {email}</p>
-            <p><span className="font-semibold text-zinc-900">Resume Attachment:</span> {resumeFile ? 'Attached ✓' : 'None'}</p>
+            <p><span className="font-semibold text-zinc-900">Resume Attachment:</span> {resumeLink ? 'Link Saved ✓' : 'None'}</p>
           </div>
 
           {!user && (
@@ -581,52 +583,47 @@ export const StudentRegisterPage: React.FC = () => {
             </div>
 
 
-            {/* Resume Upload & Replacement */}
+            {/* Resume URL Link Input & Extraction */}
             <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
-              <label className="text-xs font-bold text-zinc-900 block uppercase tracking-wider">
-                Resume Document
-              </label>
-
-              {resumeFile ? (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    <FileText className="h-4 w-4 text-emerald-700 shrink-0" />
-                    <div className="truncate">
-                      <p className="font-semibold text-emerald-900 truncate text-[11px]">
-                        {resumeFile.split('/').pop()?.split('?')[0] || 'Resume Document'}
-                      </p>
-                      <p className="text-[10px] text-emerald-700">Active candidate resume file</p>
-                    </div>
-                  </div>
-                  <a
-                    href={resumeFile}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="shrink-0 px-2.5 py-1 text-[11px] font-bold bg-emerald-600 text-white rounded hover:bg-emerald-700"
-                  >
-                    View Resume
-                  </a>
-                </div>
-              ) : (
-                <p className="text-xs text-zinc-500">No resume attached to candidate profile yet.</p>
-              )}
-
-              <div>
-                <label className="text-xs font-semibold text-zinc-800 block mb-1">
-                  {resumeFile ? 'Upload New Resume (Replaces Current File)' : 'Upload Resume File (PDF / Docx)'}
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-zinc-900 block uppercase tracking-wider">
+                  Resume Share Link (Google Drive)
                 </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleResumeUpload}
-                    disabled={uploadingResume}
-                    className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-900 file:text-white hover:file:bg-zinc-800 cursor-pointer"
-                  />
+                {resumeExtractedText && (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    ✓ Text Extracted ({resumeExtractedText.length} chars)
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <LinkIcon className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+                    <input
+                      type="url"
+                      placeholder="https://drive.google.com/file/d/... or share link"
+                      value={resumeLink}
+                      onChange={(e) => setResumeLink(e.target.value)}
+                      className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-zinc-300 bg-white focus:ring-2 focus:ring-zinc-900 font-mono"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResumeLinkExtract}
+                    disabled={!resumeLink.trim() || extractingResume}
+                    className="shrink-0 text-xs gap-1.5 bg-white"
+                  >
+                    {extractingResume ? 'Extracting...' : 'Verify Link & Extract Text'}
+                  </Button>
                 </div>
-                {uploadingResume && (
-                  <p className="text-[11px] text-zinc-500 mt-1 font-medium">
-                    Uploading resume file...
+
+                {extractError && (
+                  <p className="text-[11px] text-rose-600 font-semibold flex items-center gap-1">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{extractError}</span>
                   </p>
                 )}
               </div>
@@ -643,7 +640,7 @@ export const StudentRegisterPage: React.FC = () => {
 
               <Button
                 type="submit"
-                disabled={submitting || uploadingResume || !eligibility.isEligible || Boolean(existingAppForDrive)}
+                disabled={submitting || extractingResume || !eligibility.isEligible || Boolean(existingAppForDrive)}
                 className="gap-2 bg-zinc-900 hover:bg-zinc-800 text-white disabled:bg-zinc-300 disabled:cursor-not-allowed"
               >
                 <CheckCircle2 className="h-4 w-4" />

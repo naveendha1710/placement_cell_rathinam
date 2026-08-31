@@ -32,7 +32,6 @@ export interface Student {
   gender?: string | null;
   residency?: ResidencyType | null;
   batch?: StudentBatch | null;
-  source?: string | null;
   sslc_percentage?: number | null;
   hsc_percentage?: number | null;
   ug_cgpa?: number | null;
@@ -47,6 +46,8 @@ export interface Student {
   linkedin_url?: string | null;
   portfolio_url?: string | null;
   resume_file?: string | null;
+  resume_link?: string | null;
+  resume_extracted_text?: string | null;
   video_intro_link?: string | null;
   photo_file?: string | null;
   email: string;
@@ -114,6 +115,7 @@ export interface JobRole {
   eligibility_criteria?: EligibilityCriteria | null;
   jd_text?: string | null;
   jd_files?: string[] | null;
+  jd_link?: string | null;
   vacancies?: number | null;
   extraction_id?: string | null;
 }
@@ -152,6 +154,7 @@ export interface Offer {
   // Backward-compatibility fallbacks
   jd_text?: string | null;
   jd_files?: string[] | null;
+  jd_link?: string | null;
   eligible_departments?: string[] | null;
   ctc_lpa?: number | null;
   base_lpa?: number | null;
@@ -186,6 +189,8 @@ export interface DriveApplication {
   applied_at: string;
   match_score?: number | null;
   match_explanation?: string | null;
+  matched_skills?: string[] | null;
+  missing_skills?: string[] | null;
   matched_model?: string | null;
   matched_at?: string | null;
   round_wise_status?: Record<string, string> | null;

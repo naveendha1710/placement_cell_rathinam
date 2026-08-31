@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Student, PlacementStatus, ResidencyType, PGStatus } from '../../types/database';
 import { DataStore } from '../../lib/store';
+import { extractFromUrl } from '../../utils/documentExtractor';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
@@ -51,6 +52,8 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     linkedin_url: '',
     portfolio_url: '',
     resume_file: '',
+    resume_link: '',
+    resume_extracted_text: '',
     video_intro_link: '',
     photo_file: '',
   });
@@ -81,6 +84,8 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
         linkedin_url: student.linkedin_url || '',
         portfolio_url: student.portfolio_url || '',
         resume_file: student.resume_file || '',
+        resume_link: student.resume_link || '',
+        resume_extracted_text: student.resume_extracted_text || '',
         video_intro_link: student.video_intro_link || '',
         photo_file: student.photo_file || '',
       });
@@ -107,6 +112,8 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
         linkedin_url: '',
         portfolio_url: '',
         resume_file: '',
+        resume_link: '',
+        resume_extracted_text: '',
         video_intro_link: '',
         photo_file: '',
       });
@@ -115,6 +122,21 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
   const [uploadingResume, setUploadingResume] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [extractingResume, setExtractingResume] = useState(false);
+
+  const handleExtractFromLink = async () => {
+    const link = formData.resume_link?.trim();
+    if (!link) return;
+    setExtractingResume(true);
+    try {
+      const text = await extractFromUrl(link);
+      setFormData(prev => ({ ...prev, resume_extracted_text: text }));
+    } catch (err: any) {
+      alert(`Failed to extract text from resume link: ${err.message || 'Error fetching file'}`);
+    } finally {
+      setExtractingResume(false);
+    }
+  };
 
   const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -175,6 +197,8 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
         linkedin_url: formData.linkedin_url.trim(),
         portfolio_url: formData.portfolio_url.trim(),
         resume_file: formData.resume_file.trim(),
+        resume_link: formData.resume_link.trim(),
+        resume_extracted_text: formData.resume_extracted_text || null,
         video_intro_link: formData.video_intro_link.trim(),
         photo_file: formData.photo_file.trim(),
       });
@@ -399,19 +423,29 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
             <div>
               <label className="text-xs font-medium text-zinc-700 block mb-1">
-                Upload Resume (PDF/Docx) → <span className="font-bold text-zinc-900">student_files</span>
+                Resume Link (Google Drive / Direct URL)
               </label>
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={handleResumeUpload}
-                disabled={uploadingResume}
-                className="block w-full text-xs text-zinc-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-zinc-900 file:text-white hover:file:bg-zinc-800 cursor-pointer"
-              />
-              {uploadingResume && <p className="text-[11px] text-zinc-500 mt-1">Uploading resume to student_files...</p>}
-              {formData.resume_file && (
-                <p className="text-[11px] text-emerald-700 font-medium mt-1 truncate">
-                  ✓ {formData.resume_file}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://drive.google.com/file/d/... or share link"
+                  value={formData.resume_link || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, resume_link: e.target.value }))}
+                  className="font-mono text-xs flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExtractFromLink}
+                  disabled={!formData.resume_link?.trim() || extractingResume}
+                  className="shrink-0 text-xs bg-white"
+                >
+                  {extractingResume ? 'Extracting...' : 'Verify & Extract'}
+                </Button>
+              </div>
+              {formData.resume_extracted_text && (
+                <p className="text-[11px] text-emerald-700 font-medium mt-1">
+                  ✓ Resume text extracted ({formData.resume_extracted_text.length} chars)
                 </p>
               )}
             </div>

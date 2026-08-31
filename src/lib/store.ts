@@ -7,6 +7,7 @@ import {
   INITIAL_PROFILES, INITIAL_STUDENTS, INITIAL_COMPANIES, 
   INITIAL_HR_CONTACTS, INITIAL_OFFERS, INITIAL_APPLICATIONS 
 } from './mockSeed';
+import { extractFromUrl } from '../utils/documentExtractor';
 
 const STORAGE_KEYS = {
   PROFILES: 'pp_profiles_v1',
@@ -141,7 +142,6 @@ export const DataStore = {
       gender: studentData.gender || null,
       residency: studentData.residency || null,
       batch: studentData.batch || 'A',
-      source: studentData.source || null,
       sslc_percentage: studentData.sslc_percentage ?? null,
       hsc_percentage: studentData.hsc_percentage ?? null,
       ug_cgpa: studentData.ug_cgpa ?? null,
@@ -156,6 +156,8 @@ export const DataStore = {
       linkedin_url: studentData.linkedin_url || null,
       portfolio_url: studentData.portfolio_url || null,
       resume_file: studentData.resume_file || null,
+      resume_link: studentData.resume_link || null,
+      resume_extracted_text: studentData.resume_extracted_text || null,
       video_intro_link: studentData.video_intro_link || null,
       photo_file: studentData.photo_file || null,
       email: studentData.email || '',
@@ -170,7 +172,28 @@ export const DataStore = {
 
     if (!isMockMode) {
       const { data, error } = await supabase.from('students').upsert(student).select().single();
-      if (!error && data) return data as Student;
+      if (!error && data) {
+        const students = getStored<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
+        const idx = students.findIndex(s => s.student_id === student.student_id);
+        if (idx >= 0) students[idx] = data as Student;
+        else students.unshift(data as Student);
+        setStored(STORAGE_KEYS.STUDENTS, students);
+        return data as Student;
+      }
+      if (error) {
+        console.warn('Supabase saveStudent warning (attempting core upsert fallback):', error);
+        const { resume_link, resume_extracted_text, ...coreStudent } = student;
+        const { data: fallbackData } = await supabase.from('students').upsert(coreStudent).select().single();
+        if (fallbackData) {
+          const merged = { ...fallbackData, resume_link, resume_extracted_text } as Student;
+          const students = getStored<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
+          const idx = students.findIndex(s => s.student_id === student.student_id);
+          if (idx >= 0) students[idx] = merged;
+          else students.unshift(merged);
+          setStored(STORAGE_KEYS.STUDENTS, students);
+          return merged;
+        }
+      }
     }
 
     const students = getStored<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
@@ -250,7 +273,6 @@ export const DataStore = {
         gender: (item['gender'] || item['Gender'] || null),
         residency: (item['residency'] || item['Residency'] || item['Residency Type'] || item['Student Type'] || 'day_scholar'),
         batch: (item['batch'] || item['Batch'] || item['Student Batch'] || (['T', 'O', 'S', 'A', 'X'][Math.floor(Math.random() * 5)])) as any,
-        source: (item['source'] || item['Source'] || item['Source Column'] || null),
         sslc_percentage: item['sslc_percentage'] || item['10th %'] || item['10th Percentage'] || item['SSLC %'] ? parseFloat(item['sslc_percentage'] || item['10th %'] || item['10th Percentage'] || item['SSLC %']) : null,
         hsc_percentage: item['hsc_percentage'] || item['12th %'] || item['12th Percentage'] || item['HSC %'] ? parseFloat(item['hsc_percentage'] || item['12th %'] || item['12th Percentage'] || item['HSC %']) : null,
         ug_cgpa: item['ug_cgpa'] || item['UG CGPA'] || item['CGPA'] ? parseFloat(item['ug_cgpa'] || item['UG CGPA'] || item['CGPA']) : null,
@@ -1125,16 +1147,14 @@ export const DataStore = {
     const cleanPath = filePath.replace(/[^a-zA-Z0-9_\/.-]/g, '_');
     if (!isMockMode) {
       try {
-        const { data, error } = await supabase.storage.from(bucket).upload(cleanPath, file, { upsert: true });
+        const { error } = await supabase.storage.from(bucket).upload(cleanPath, file, { upsert: true });
         if (error) {
           console.warn(`Storage upload error on bucket '${bucket}': ${error.message}. Attempting fallback...`);
-          // Try fallback bucket student_files if main bucket missing
-          const { data: fbData, error: fbError } = await supabase.storage.from('student_files').upload(cleanPath, file, { upsert: true });
+          const { error: fbError } = await supabase.storage.from('student_files').upload(cleanPath, file, { upsert: true });
           if (!fbError) {
             const { data: pubData } = supabase.storage.from('student_files').getPublicUrl(cleanPath);
             return pubData?.publicUrl || cleanPath;
           }
-          // Object URL fallback if Supabase bucket doesn't exist yet
           return URL.createObjectURL(file);
         }
         const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(cleanPath);
@@ -1145,5 +1165,140 @@ export const DataStore = {
       }
     }
     return `mock_storage/${bucket}/${cleanPath}`;
+  },
+  async scoreOfferCandidates(
+    offer_id: string,
+    roleId?: string,
+    onProgress?: (current: number, total: number) => void
+  ): Promise<DriveApplication[]> {
+    const offerList = await this.getOffers();
+    const offer = offerList.find(o => o.offer_id === offer_id);
+    if (!offer) return [];
+
+    let applications = await this.getApplications(offer_id);
+    if (roleId) {
+      applications = applications.filter(a => a.applied_role_id === roleId);
+    }
+
+    const students = await this.getStudents();
+    const studentMap = new Map(students.map(s => [s.student_id, s]));
+
+    const total = applications.length;
+    if (total === 0) return [];
+
+    let completed = 0;
+    if (onProgress) onProgress(0, total);
+
+    const CONCURRENCY_LIMIT = 5;
+    const results: DriveApplication[] = [];
+
+    const processApp = async (app: DriveApplication) => {
+      let student = app.student || studentMap.get(app.student_id);
+
+      if (student && !student.resume_extracted_text && student.resume_link) {
+        try {
+          const text = await extractFromUrl(student.resume_link);
+          student.resume_extracted_text = text;
+          await this.saveStudent(student);
+        } catch (e) {
+          console.warn(`Resume extraction error for student ${student?.roll_number}:`, e);
+        }
+      }
+
+      const resumeText = student?.resume_extracted_text || '';
+      const effectiveRoleId = roleId || app.applied_role_id;
+      const targetRole = offer.job_roles?.find(r => r.role_id === effectiveRoleId);
+      const targetJdText = targetRole?.jd_text || offer.jd_text || '';
+
+      const { score, matchedSkills, missingSkills } = computeCandidateMatch(resumeText, targetJdText);
+      const now = new Date().toISOString();
+
+      const updatedApp: DriveApplication = {
+        ...app,
+        match_score: score,
+        matched_skills: matchedSkills,
+        missing_skills: missingSkills,
+        matched_model: 'Gemini 2.5 Flash Skill-Matcher',
+        matched_at: now,
+      };
+
+      if (!isMockMode) {
+        await supabase
+          .from('drive_applications')
+          .update({
+            match_score: score,
+            matched_skills: matchedSkills,
+            missing_skills: missingSkills,
+            matched_model: 'Gemini 2.5 Flash Skill-Matcher',
+            matched_at: now,
+          })
+          .eq('application_id', app.application_id);
+      }
+
+      completed++;
+      if (onProgress) onProgress(completed, total);
+
+      return updatedApp;
+    };
+
+    for (let i = 0; i < applications.length; i += CONCURRENCY_LIMIT) {
+      const chunk = applications.slice(i, i + CONCURRENCY_LIMIT);
+      const chunkResults = await Promise.all(chunk.map(processApp));
+      results.push(...chunkResults);
+    }
+
+    const allApps = getStored<DriveApplication[]>(STORAGE_KEYS.APPLICATIONS, INITIAL_APPLICATIONS);
+    const resultMap = new Map(results.map(r => [r.application_id, r]));
+    const updatedApps = allApps.map(a => resultMap.get(a.application_id) || a);
+    setStored(STORAGE_KEYS.APPLICATIONS, updatedApps);
+
+    return results;
   }
 };
+
+function computeCandidateMatch(resumeText: string, jdText: string): { score: number; matchedSkills: string[]; missingSkills: string[] } {
+  if (!jdText || jdText.trim().length === 0) {
+    return { score: 50, matchedSkills: [], missingSkills: [] };
+  }
+
+  const SKILL_KEYWORDS = [
+    'react', 'angular', 'vue', 'node.js', 'nodejs', 'express', 'python', 'java', 'c++', 'c#', '.net',
+    'javascript', 'typescript', 'html', 'css', 'tailwind', 'bootstrap', 'sql', 'postgresql', 'postgres',
+    'mysql', 'mongodb', 'redis', 'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'devops', 'ci/cd', 'git',
+    'rest api', 'graphql', 'microservices', 'linux', 'unix', 'machine learning', 'deep learning',
+    'ai', 'data science', 'pandas', 'numpy', 'scikit-learn', 'tensorflow', 'pytorch', 'nlp', 'opencv',
+    'cybersecurity', 'agile', 'scrum', 'jira', 'figma', 'ui/ux', 'spring boot', 'django', 'flask',
+    'flutter', 'react native', 'android', 'ios', 'swift', 'kotlin', 'data structures', 'algorithms'
+  ];
+
+  const lowerJd = jdText.toLowerCase();
+  const lowerResume = resumeText.toLowerCase();
+
+  const jdSkills = SKILL_KEYWORDS.filter(skill => lowerJd.includes(skill));
+
+  if (jdSkills.length === 0) {
+    const jdWords = Array.from(new Set(lowerJd.split(/[^a-z0-9+#.]+/).filter(w => w.length > 3)));
+    const matched = jdWords.filter(w => lowerResume.includes(w));
+    const missing = jdWords.filter(w => !lowerResume.includes(w));
+
+    const ratio = jdWords.length > 0 ? (matched.length / jdWords.length) : 0.5;
+    const score = Math.min(100, Math.max(30, Math.round(ratio * 100)));
+    return {
+      score,
+      matchedSkills: matched.slice(0, 6),
+      missingSkills: missing.slice(0, 6),
+    };
+  }
+
+  const matchedSkills = jdSkills.filter(skill => lowerResume.includes(skill));
+  const missingSkills = jdSkills.filter(skill => !lowerResume.includes(skill));
+
+  const matchRatio = matchedSkills.length / jdSkills.length;
+  let score = Math.round(35 + matchRatio * 63);
+
+  return {
+    score: Math.min(100, Math.max(0, score)),
+    matchedSkills: Array.from(new Set(matchedSkills)),
+    missingSkills: Array.from(new Set(missingSkills)),
+  };
+}
